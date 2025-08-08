@@ -36,14 +36,26 @@ const menuItems = [
     description: '招生人员管理',
   },
   {
+    title: '审批中心',
+    url: '/approvals',
+    icon: Target,
+    description: '注册与升级审批',
+  },
+  {
     title: '学员管理',
     url: '/students',
     icon: GraduationCap,
     description: '学员信息管理',
   },
   {
-    title: '考试管理',
-    url: '/exams',
+    title: '课程管理',
+    url: '/courses',
+    icon: Calendar,
+    description: '课程信息管理',
+  },
+  {
+    title: '考试安排',
+    url: '/schedules',
     icon: Calendar,
     description: '考试安排管理',
   },
@@ -54,10 +66,28 @@ const menuItems = [
     description: '奖励发放管理',
   },
   {
+    title: '通知中心',
+    url: '/notifications',
+    icon: Target,
+    description: '系统通知与模板',
+  },
+  {
     title: '考核管理',
     url: '/assessments',
     icon: Target,
     description: '绩效考核管理',
+  },
+  {
+    title: '导出中心',
+    url: '/exports',
+    icon: Target,
+    description: 'Excel 导出记录',
+  },
+  {
+    title: '财务',
+    url: '/finance',
+    icon: Target,
+    description: '工资与汇总',
   },
   {
     title: '系统设置',

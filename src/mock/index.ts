@@ -5,7 +5,17 @@ import type {
   Reward, 
   Assessment, 
   DashboardStats,
-  ChartData 
+  ChartData,
+  Course,
+  Schedule,
+  NotificationItem,
+  NotificationTemplate,
+  RuleConfig,
+  UpgradeConditions,
+  ReminderPlan,
+  ExportRecord,
+  PayrollRecord,
+  FinanceReportSummary,
 } from '@/types';
 
 // Mock用户数据
@@ -269,3 +279,186 @@ export const mockExamStatusChart: ChartData[] = [
   { name: '已完成', value: 28, category: 'completed' },
   { name: '已取消', value: 2, category: 'cancelled' },
 ];
+
+// Mock 课程（Courses）
+export const mockCourses: Course[] = [
+  {
+    id: 'c1',
+    course_name: '健康管理师',
+    course_code: 'HMS-01',
+    course_level: '高级',
+    description: '健康管理专业课程',
+    requirements: '相关行业从业者优先',
+    exam_requirements: '理论考试70%，实操考核30%（现场操作）',
+    national_standard_ref: 'GB/T 12345-2024',
+    standard_fee: 2980,
+    theory_ratio: 70,
+    practice_ratio: 30,
+    status: 'active',
+    createdAt: '2024-01-01T00:00:00Z',
+    updatedAt: '2024-01-01T00:00:00Z',
+  },
+  {
+    id: 'c2',
+    course_name: '健康照护师',
+    course_code: 'HZS-01',
+    course_level: '初级',
+    description: '健康照护基础课程',
+    requirements: '具备相关基础',
+    exam_requirements: '理论60%，实操40%（护理技能）',
+    national_standard_ref: 'YY/T 67890-2023',
+    standard_fee: 1980,
+    theory_ratio: 60,
+    practice_ratio: 40,
+    status: 'active',
+    createdAt: '2024-01-01T00:00:00Z',
+    updatedAt: '2024-01-01T00:00:00Z',
+  },
+];
+
+// Mock 考试安排（Schedules）
+export const mockSchedules: Schedule[] = [
+  {
+    id: 's1',
+    course_id: 'c1',
+    course_name: '健康管理师',
+    exam_date: '2024-09-20',
+    exam_time: '09:00:00',
+    exam_location: '北京考点A',
+    total_seats: 50,
+    occupied_seats: 20,
+    status: 2,
+    registration_deadline: '2024-09-15',
+    notes: '第一批发布，关注报名进度',
+    notify_on_change: true,
+    createdAt: '2024-08-01T00:00:00Z',
+    updatedAt: '2024-08-01T00:00:00Z',
+  },
+  {
+    id: 's2',
+    course_id: 'c2',
+    course_name: '健康照护师',
+    exam_date: '2024-10-18',
+    exam_time: '14:00:00',
+    exam_location: '上海考点B',
+    total_seats: 80,
+    occupied_seats: 60,
+    status: 2,
+    registration_deadline: '2024-10-10',
+    notes: '场地调整过一次',
+    notify_on_change: false,
+    createdAt: '2024-08-05T00:00:00Z',
+    updatedAt: '2024-08-05T00:00:00Z',
+  },
+];
+
+// 审批中心 - 升级申请
+export const mockUpgradeApplications = [
+  {
+    id: 'ua1',
+    userId: '5',
+    userName: '刘兼职',
+    fromIdentity: 'part_time',
+    toIdentity: 'part_time_lead',
+    status: 'pending',
+    reason: '近三月连续达标，申请负责人',
+    createdAt: '2024-08-01T00:00:00Z',
+  },
+  {
+    id: 'ua2',
+    userId: '4',
+    userName: '陈招生',
+    fromIdentity: 'full_time',
+    toIdentity: 'channel',
+    status: 'pending',
+    reason: '负责新增渠道“人社”',
+    createdAt: '2024-08-03T00:00:00Z',
+  },
+];
+
+// 通知中心
+export const mockNotifications: NotificationItem[] = [
+  {
+    id: 'n1',
+    title: '学员欠费提醒',
+    content: '学员 孙学员 仍未完成缴费，请跟进。',
+    type: 'reminder',
+    status: 'unread',
+    createdAt: '2024-08-06T10:00:00Z',
+  },
+  {
+    id: 'n2',
+    title: '考试安排更新',
+    content: '健康照护师 10-18 安排已发布。',
+    type: 'system',
+    status: 'read',
+    createdAt: '2024-08-05T09:00:00Z',
+  },
+];
+
+export const mockNotificationTemplates: NotificationTemplate[] = [
+  {
+    id: 't1',
+    name: '缴费提醒',
+    scene: 'payment_reminder',
+    channel: 'websocket',
+    content: '您有未完成缴费的学员，请尽快处理。',
+    enabled: true,
+    updatedAt: '2024-08-01T00:00:00Z',
+  },
+  {
+    id: 't2',
+    name: '考试更新通知',
+    scene: 'exam_update',
+    channel: 'websocket',
+    content: '考试安排已更新，请查看最新信息。',
+    enabled: true,
+    updatedAt: '2024-08-01T00:00:00Z',
+  },
+];
+
+// 系统设置
+export const mockRuleConfig: RuleConfig = {
+  autoApproveRegistration: true,
+  studentAutoApproveThreshold: 90,
+  rewardAutoApproveAmountLimit: 200,
+};
+
+export const mockUpgradeConditions: UpgradeConditions = {
+  partTimeToLead: {
+    minMonthlyRecruitment: 8,
+    continuousMonths: 3,
+    interviewRequired: true,
+  },
+};
+
+export const mockReminderPlans: ReminderPlan[] = [
+  { id: 'rp1', name: '缴费每日提醒', scene: 'payment', schedule: 'daily', time: '09:00', enabled: true },
+  { id: 'rp2', name: '考试每周预告', scene: 'exam', schedule: 'weekly', time: '10:00', enabled: true },
+];
+
+// 导出中心
+export const mockExportRecords: ExportRecord[] = [
+  {
+    id: 'e1',
+    type: 'students',
+    status: 'completed',
+    createdAt: '2024-08-01T08:00:00Z',
+    finishedAt: '2024-08-01T08:00:10Z',
+    fileUrl: '/downloads/students_20240801.xlsx',
+  },
+];
+
+// 财务
+export const mockPayrolls: PayrollRecord[] = [
+  { id: 'p1', userId: '4', userName: '陈招生', month: '2024-07', base: 5000, reward: 1200, deduction: 0, total: 6200, status: 'paid' },
+  { id: 'p2', userId: '5', userName: '刘兼职', month: '2024-07', base: 2000, reward: 600, deduction: 100, total: 2500, status: 'unpaid' },
+];
+
+export const mockFinanceReport: FinanceReportSummary = {
+  month: '2024-07',
+  totalPayroll: 8700,
+  totalReward: 1800,
+  receivable: 56000,
+  received: 42000,
+};

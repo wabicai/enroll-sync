@@ -47,14 +47,14 @@ const statusLabels = {
 export default function Exams() {
   const [exams, setExams] = useState<Exam[]>(mockExams);
   const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
   const filteredExams = exams.filter(exam => {
     const matchesSearch = exam.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          exam.location.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = !categoryFilter || exam.category === categoryFilter;
-    const matchesStatus = !statusFilter || exam.status === statusFilter;
+    const matchesCategory = categoryFilter === 'all' || exam.category === categoryFilter;
+    const matchesStatus = statusFilter === 'all' || exam.status === statusFilter;
     
     return matchesSearch && matchesCategory && matchesStatus;
   });
@@ -183,7 +183,7 @@ export default function Exams() {
                   <SelectValue placeholder="工种" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">全部工种</SelectItem>
+                  <SelectItem value="all">全部工种</SelectItem>
                   {Object.entries(categoryLabels).map(([value, label]) => (
                     <SelectItem key={value} value={value}>{label}</SelectItem>
                   ))}
@@ -194,7 +194,7 @@ export default function Exams() {
                   <SelectValue placeholder="状态" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">全部状态</SelectItem>
+                  <SelectItem value="all">全部状态</SelectItem>
                   {Object.entries(statusLabels).map(([value, label]) => (
                     <SelectItem key={value} value={value}>{label}</SelectItem>
                   ))}

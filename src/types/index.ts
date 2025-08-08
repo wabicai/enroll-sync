@@ -109,6 +109,55 @@ export interface ChartData {
   date?: string;
 }
 
+// 课程信息（Courses）
+export interface Course {
+  id: string;
+  course_name: string;
+  course_code: string;
+  course_level?: string;
+  description?: string;
+  requirements?: string;
+  exam_requirements?: string;
+  national_standard_ref?: string;
+  standard_fee?: number;
+  theory_ratio?: number;
+  practice_ratio?: number;
+  status: 'active' | 'disabled';
+  createdAt: string;
+  updatedAt: string;
+}
+
+// 考试安排（Schedules）
+export interface Schedule {
+  id: string;
+  course_id: string;
+  course_name: string;
+  exam_date: string;      // YYYY-MM-DD
+  exam_time?: string;     // HH:mm:ss
+  exam_location: string;
+  total_seats: number;
+  occupied_seats: number;
+  status: 1 | 2 | 3 | 4 | 5; // 草稿/已发布/已取消/已延期/已停用
+  registration_deadline?: string; // YYYY-MM-DD
+  notes?: string;
+  notify_on_change?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// 升级申请（Approvals - Upgrades）
+export interface UpgradeApplication {
+  id: string;
+  userId: string;
+  userName: string;
+  fromIdentity: 'full_time' | 'part_time' | 'freelance' | 'channel' | 'part_time_lead';
+  toIdentity: 'part_time' | 'channel' | 'part_time_lead';
+  status: 'pending' | 'approved' | 'rejected';
+  reason?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
 // API响应类型
 export interface ApiResponse<T> {
   code: number;
@@ -140,4 +189,79 @@ export interface AppState {
   user: User | null;
   theme: Theme;
   sidebarCollapsed: boolean;
+}
+
+// 通知
+export interface NotificationItem {
+  id: string;
+  title: string;
+  content: string;
+  type: 'system' | 'reminder' | 'approval' | 'finance';
+  status: 'unread' | 'read' | 'sent' | 'failed';
+  createdAt: string;
+}
+
+export interface NotificationTemplate {
+  id: string;
+  name: string;
+  scene: 'payment_reminder' | 'exam_update' | 'assessment_warning' | 'reward_result';
+  channel: 'websocket' | 'email' | 'sms';
+  content: string;
+  enabled: boolean;
+  updatedAt: string;
+}
+
+// 系统设置：规则与计划
+export interface RuleConfig {
+  autoApproveRegistration: boolean; // 是否允许总经理直批
+  studentAutoApproveThreshold?: number; // 学员信息完整度阈值
+  rewardAutoApproveAmountLimit?: number; // 自动通过奖励上限金额
+}
+
+export interface UpgradeConditions {
+  partTimeToLead: {
+    minMonthlyRecruitment: number;
+    continuousMonths: number;
+    interviewRequired: boolean;
+  };
+}
+
+export interface ReminderPlan {
+  id: string;
+  name: string;
+  scene: 'payment' | 'exam' | 'assessment';
+  schedule: 'daily' | 'weekly' | 'monthly';
+  time: string; // HH:mm
+  enabled: boolean;
+}
+
+// 导出中心
+export interface ExportRecord {
+  id: string;
+  type: 'rewards' | 'payroll' | 'students';
+  status: 'queued' | 'processing' | 'completed' | 'failed';
+  createdAt: string;
+  finishedAt?: string;
+  fileUrl?: string;
+}
+
+// 财务
+export interface PayrollRecord {
+  id: string;
+  userId: string;
+  userName: string;
+  month: string; // YYYY-MM
+  base: number;
+  reward: number;
+  deduction: number;
+  total: number;
+  status: 'unpaid' | 'paid';
+}
+
+export interface FinanceReportSummary {
+  month: string;
+  totalPayroll: number;
+  totalReward: number;
+  receivable: number;
+  received: number;
 }

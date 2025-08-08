@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
-import { Search, Plus, Filter, MoreHorizontal, Eye, Edit, Trash2, Phone, Mail } from 'lucide-react';
+import { Search, Plus, Filter, MoreHorizontal, Eye, Edit, Trash2, Phone } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,7 +27,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { mockStudents } from '@/mock';
+import { setStudentStatus, updateStudent, createStudent } from '@/lib/api';
 import type { Student, StudentCategory } from '@/types';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
+import { useEffect } from 'react';
 
 const categoryLabels = {
   safety_officer: '安全员',
@@ -53,21 +58,67 @@ const paymentLabels = {
 export default function Students() {
   const [students, setStudents] = useState<Student[]>(mockStudents);
   const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<string>('');
-  const [paymentFilter, setPaymentFilter] = useState<string>('');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [paymentFilter, setPaymentFilter] = useState<string>('all');
+  const [openAdd, setOpenAdd] = useState(false);
+  const [form, setForm] = useState<Partial<Student>>({ status: 'pending', paymentStatus: 'unpaid', amount: 0, paidAmount: 0, tags: [] });
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [selected, setSelected] = useState<Student | null>(null);
+  const [sortKey, setSortKey] = useState<'createdAt' | 'name' | 'amount' | 'paidAmount'>('createdAt');
 
-  const filteredStudents = students.filter(student => {
+  const filteredStudents = students
+    .filter(student => {
     const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          student.phone.includes(searchTerm) ||
                          student.idCard.includes(searchTerm) ||
                          student.recruiterName.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = !categoryFilter || student.category === categoryFilter;
-    const matchesStatus = !statusFilter || student.status === statusFilter;
-    const matchesPayment = !paymentFilter || student.paymentStatus === paymentFilter;
+    const matchesCategory = categoryFilter === 'all' || student.category === categoryFilter;
+    const matchesStatus = statusFilter === 'all' || student.status === statusFilter;
+    const matchesPayment = paymentFilter === 'all' || student.paymentStatus === paymentFilter;
     
     return matchesSearch && matchesCategory && matchesStatus && matchesPayment;
-  });
+    })
+    .sort((a, b) => {
+      switch (sortKey) {
+        case 'name':
+          return a.name.localeCompare(b.name);
+        case 'amount':
+          return b.amount - a.amount;
+        case 'paidAmount':
+          return b.paidAmount - a.paidAmount;
+        default:
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      }
+    });
+  const totalPages = Math.max(1, Math.ceil(filteredStudents.length / pageSize));
+  const paginated = filteredStudents.slice((page - 1) * pageSize, page * pageSize);
+
+  // URL 持久化 - 初始化
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    setSearchTerm(sp.get('q') || '');
+    setCategoryFilter(sp.get('category') || 'all');
+    setStatusFilter(sp.get('status') || 'all');
+    setPaymentFilter(sp.get('payment') || 'all');
+    setSortKey((sp.get('sort') as any) || 'createdAt');
+    setPage(Number(sp.get('page') || '1'));
+  }, []);
+
+  // URL 持久化 - 写入
+  useEffect(() => {
+    const sp = new URLSearchParams();
+    if (searchTerm) sp.set('q', searchTerm);
+    if (categoryFilter !== 'all') sp.set('category', categoryFilter);
+    if (statusFilter !== 'all') sp.set('status', statusFilter);
+    if (paymentFilter !== 'all') sp.set('payment', paymentFilter);
+    if (sortKey !== 'createdAt') sp.set('sort', sortKey);
+    if (page !== 1) sp.set('page', String(page));
+    const url = `${location.pathname}?${sp.toString()}`;
+    window.history.replaceState({}, '', url);
+  }, [searchTerm, categoryFilter, statusFilter, paymentFilter, sortKey, page]);
 
   const getStatusVariant = (status: string) => {
     switch (status) {
@@ -102,10 +153,73 @@ export default function Students() {
             管理学员信息、审核状态和缴费情况
           </p>
         </div>
-        <Button className="bg-primary hover:bg-primary-hover">
-          <Plus className="mr-2 h-4 w-4" />
-          添加学员
-        </Button>
+        <Dialog open={openAdd} onOpenChange={setOpenAdd}>
+          <DialogTrigger asChild>
+            <Button className="bg-primary hover:bg-primary-hover">
+              <Plus className="mr-2 h-4 w-4" />
+              添加学员
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>添加学员</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>姓名</Label>
+                  <Input value={form.name ?? ''} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                </div>
+                <div>
+                  <Label>手机号</Label>
+                  <Input value={form.phone ?? ''} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                </div>
+              </div>
+              <div>
+                <Label>身份证号</Label>
+                <Input value={form.idCard ?? ''} onChange={(e) => setForm({ ...form, idCard: e.target.value })} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>工种</Label>
+                  <Select value={(form.category as string) || 'safety_officer'} onValueChange={(v) => setForm({ ...form, category: v as StudentCategory })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="选择工种" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(categoryLabels).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>{label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>金额(¥)</Label>
+                  <Input type="number" value={form.amount ?? 0} onChange={(e) => setForm({ ...form, amount: Number(e.target.value) })} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>招生人员ID</Label>
+                  <Input value={form.recruiterId ?? ''} onChange={(e) => setForm({ ...form, recruiterId: e.target.value })} />
+                </div>
+                <div>
+                  <Label>招生人员姓名</Label>
+                  <Input value={form.recruiterName ?? ''} onChange={(e) => setForm({ ...form, recruiterName: e.target.value })} />
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button onClick={async () => {
+                if (!form.name || !form.phone || !form.idCard || !form.category || form.amount === undefined) return;
+                const created = await createStudent(form as any);
+                setStudents(prev => [created, ...prev]);
+                setOpenAdd(false);
+                setForm({ status: 'pending', paymentStatus: 'unpaid', amount: 0, paidAmount: 0, tags: [] });
+              }}>保存</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* 统计卡片 */}
@@ -184,7 +298,7 @@ export default function Students() {
                   <SelectValue placeholder="工种" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">全部工种</SelectItem>
+                  <SelectItem value="all">全部工种</SelectItem>
                   {Object.entries(categoryLabels).map(([value, label]) => (
                     <SelectItem key={value} value={value}>{label}</SelectItem>
                   ))}
@@ -195,7 +309,7 @@ export default function Students() {
                   <SelectValue placeholder="状态" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">全部状态</SelectItem>
+                  <SelectItem value="all">全部状态</SelectItem>
                   {Object.entries(statusLabels).map(([value, label]) => (
                     <SelectItem key={value} value={value}>{label}</SelectItem>
                   ))}
@@ -206,10 +320,21 @@ export default function Students() {
                   <SelectValue placeholder="缴费" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">全部缴费</SelectItem>
+                  <SelectItem value="all">全部缴费</SelectItem>
                   {Object.entries(paymentLabels).map(([value, label]) => (
                     <SelectItem key={value} value={value}>{label}</SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+              <Select value={sortKey} onValueChange={(v) => setSortKey(v as any)}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="排序" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="createdAt">按创建时间</SelectItem>
+                  <SelectItem value="name">按姓名</SelectItem>
+                  <SelectItem value="amount">按应收金额</SelectItem>
+                  <SelectItem value="paidAmount">按已收金额</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -238,7 +363,7 @@ export default function Students() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredStudents.map((student) => (
+              {paginated.map((student) => (
                 <TableRow key={student.id}>
                   <TableCell>
                     <div>
@@ -306,21 +431,24 @@ export default function Students() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => { setSelected(student); setDetailOpen(true); }}>
                           <Eye className="mr-2 h-4 w-4" />
-                          查看详情
+                          查看详情/编辑
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Edit className="mr-2 h-4 w-4" />
-                          编辑信息
+                        <DropdownMenuItem onClick={async () => {
+                          const next = prompt('修改审核状态(pending/approved/rejected/graduated)', student.status);
+                          if (!next) return;
+                          const updated = await setStudentStatus(student.id, next as any);
+                          if (updated) {
+                            const idx = students.findIndex(s => s.id === student.id);
+                            const copy = [...students];
+                            copy[idx] = updated;
+                            setStudents(copy);
+                          }
+                        }}>
+                          修改审核状态
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Phone className="mr-2 h-4 w-4" />
-                          联系学员
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          缴费提醒
-                        </DropdownMenuItem>
+                        
                         <DropdownMenuItem className="text-destructive">
                           <Trash2 className="mr-2 h-4 w-4" />
                           删除学员
@@ -338,8 +466,116 @@ export default function Students() {
               <p className="text-muted-foreground">未找到匹配的学员</p>
             </div>
           )}
+          {filteredStudents.length > 0 && (
+            <div className="py-4">
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious href="#" onClick={(e) => { e.preventDefault(); setPage(p => Math.max(1, p - 1)); }} />
+                  </PaginationItem>
+                  <span className="px-3 text-sm text-muted-foreground">{page} / {totalPages}</span>
+                  <PaginationItem>
+                    <PaginationNext href="#" onClick={(e) => { e.preventDefault(); setPage(p => Math.min(totalPages, p + 1)); }} />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      {/* 详情/编辑对话框 */}
+      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>学员详情</DialogTitle>
+          </DialogHeader>
+          {selected && (
+            <div className="grid gap-4">
+              {/* 基础信息 */}
+              <div className="grid gap-3">
+                <div className="text-sm font-semibold">基础信息</div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>姓名</Label>
+                    <Input value={selected.name} onChange={(e) => setSelected({ ...selected, name: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label>手机号</Label>
+                    <Input value={selected.phone} onChange={(e) => setSelected({ ...selected, phone: e.target.value })} />
+                  </div>
+                </div>
+                <div>
+                  <Label>身份证号</Label>
+                  <Input value={selected.idCard} onChange={(e) => setSelected({ ...selected, idCard: e.target.value })} />
+                </div>
+              </div>
+
+              {/* 课程信息 */}
+              <div className="grid gap-3">
+                <div className="text-sm font-semibold">课程信息</div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>工种</Label>
+                    <Input value={categoryLabels[selected.category]} readOnly />
+                  </div>
+                  <div>
+                    <Label>标签</Label>
+                    <Input value={selected.tags?.join('、') || ''} readOnly />
+                  </div>
+                </div>
+              </div>
+
+              {/* 缴费信息 */}
+              <div className="grid gap-3">
+                <div className="text-sm font-semibold">缴费信息</div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>应收金额(¥)</Label>
+                    <Input type="number" value={selected.amount} onChange={(e) => setSelected({ ...selected, amount: Number(e.target.value) })} />
+                  </div>
+                  <div>
+                    <Label>已缴金额(¥)</Label>
+                    <Input type="number" value={selected.paidAmount} onChange={(e) => setSelected({ ...selected, paidAmount: Number(e.target.value) })} />
+                  </div>
+                </div>
+                <div>
+                  <Label>缴费状态</Label>
+                  <Input value={paymentLabels[selected.paymentStatus]} readOnly />
+                </div>
+              </div>
+
+              {/* 招生信息 */}
+              <div className="grid gap-3">
+                <div className="text-sm font-semibold">招生信息</div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>招生人员ID</Label>
+                    <Input value={selected.recruiterId} onChange={(e) => setSelected({ ...selected, recruiterId: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label>招生人员姓名</Label>
+                    <Input value={selected.recruiterName} onChange={(e) => setSelected({ ...selected, recruiterName: e.target.value })} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={async () => {
+              if (!selected) return;
+              const updated = await updateStudent(selected.id, selected);
+              if (updated) {
+                const idx = students.findIndex(s => s.id === selected.id);
+                const copy = [...students];
+                copy[idx] = updated;
+                setStudents(copy);
+                setDetailOpen(false);
+              }
+            }}>保存</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

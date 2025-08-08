@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, Plus, Filter, MoreHorizontal, Check, X, DollarSign, Gift, Star, TrendingUp } from 'lucide-react';
+import { Search, Plus, Filter, MoreHorizontal, Check, X, DollarSign, Gift, Star, TrendingUp, Calendar } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,6 +27,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { mockRewards } from '@/mock';
 import type { Reward, RewardType } from '@/types';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { createReward, updateRewardStatus, deleteReward, updateReward } from '@/lib/api';
 
 const typeLabels = {
   recruitment: '招生奖励',
@@ -44,40 +47,38 @@ const statusLabels = {
 
 export default function Rewards() {
   const [rewards, setRewards] = useState<Reward[]>(mockRewards);
+  const [openAdd, setOpenAdd] = useState(false);
+  const [form, setForm] = useState<Partial<Reward>>({ type: 'recruitment', status: 'pending', amount: 0 });
   const [searchTerm, setSearchTerm] = useState('');
-  const [typeFilter, setTypeFilter] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [fromDate, setFromDate] = useState<string>('');
+  const [toDate, setToDate] = useState<string>('');
 
   const filteredRewards = rewards.filter(reward => {
     const matchesSearch = reward.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          reward.reason.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = !typeFilter || reward.type === typeFilter;
-    const matchesStatus = !statusFilter || reward.status === statusFilter;
-    
-    return matchesSearch && matchesType && matchesStatus;
+    const matchesType = typeFilter === 'all' || reward.type === typeFilter;
+    const matchesStatus = statusFilter === 'all' || reward.status === statusFilter;
+    const created = new Date(reward.createdAt).toISOString().slice(0,10);
+    const matchesFrom = !fromDate || created >= fromDate;
+    const matchesTo = !toDate || created <= toDate;
+    return matchesSearch && matchesType && matchesStatus && matchesFrom && matchesTo;
   });
 
-  const handleApprove = (rewardId: string) => {
-    setRewards(prev => prev.map(reward => 
-      reward.id === rewardId ? { 
-        ...reward, 
-        status: 'approved' as const,
-        approvedBy: '2', // 假设是财务审核
-        approvedAt: new Date().toISOString()
-      } : reward
-    ));
+  const handleApprove = async (rewardId: string) => {
+    const updated = await updateRewardStatus(rewardId, 'approved');
+    if (updated) setRewards(prev => prev.map(r => r.id === rewardId ? { ...updated, approvedBy: '2', approvedAt: new Date().toISOString() } : r));
   };
 
-  const handleReject = (rewardId: string) => {
-    setRewards(prev => prev.map(reward => 
-      reward.id === rewardId ? { ...reward, status: 'rejected' as const } : reward
-    ));
+  const handleReject = async (rewardId: string) => {
+    const updated = await updateRewardStatus(rewardId, 'rejected');
+    if (updated) setRewards(prev => prev.map(r => r.id === rewardId ? updated : r));
   };
 
-  const handlePay = (rewardId: string) => {
-    setRewards(prev => prev.map(reward => 
-      reward.id === rewardId ? { ...reward, status: 'paid' as const } : reward
-    ));
+  const handlePay = async (rewardId: string) => {
+    const updated = await updateRewardStatus(rewardId, 'paid');
+    if (updated) setRewards(prev => prev.map(r => r.id === rewardId ? updated : r));
   };
 
   const getStatusVariant = (status: string) => {
@@ -120,10 +121,70 @@ export default function Rewards() {
             管理奖励申请、审核和发放流程
           </p>
         </div>
-        <Button className="bg-primary hover:bg-primary-hover">
-          <Plus className="mr-2 h-4 w-4" />
-          添加奖励
-        </Button>
+        <Dialog open={openAdd} onOpenChange={setOpenAdd}>
+          <DialogTrigger asChild>
+            <Button className="bg-primary hover:bg-primary-hover">
+              <Plus className="mr-2 h-4 w-4" />
+              添加奖励
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>添加奖励</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-3">
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <Label>申请人ID</Label>
+                  <Input value={form.userId ?? ''} onChange={(e) => setForm({ ...form, userId: e.target.value })} />
+                </div>
+                <div className="col-span-2">
+                  <Label>申请人姓名</Label>
+                  <Input value={form.userName ?? ''} onChange={(e) => setForm({ ...form, userName: e.target.value })} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>奖励类型</Label>
+                  <Select value={(form.type as string) || 'recruitment'} onValueChange={(v) => setForm({ ...form, type: v as RewardType })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="类型" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(typeLabels).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>{label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>金额(¥)</Label>
+                  <Input type="number" value={form.amount ?? 0} onChange={(e) => setForm({ ...form, amount: Number(e.target.value) })} />
+                </div>
+              </div>
+              <div>
+                <Label>奖励原因</Label>
+                <Input value={form.reason ?? ''} onChange={(e) => setForm({ ...form, reason: e.target.value })} />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button onClick={async () => {
+                if (!form.userId || !form.userName || !form.type || form.amount === undefined) return;
+                const created = await createReward({
+                  userId: String(form.userId),
+                  userName: String(form.userName),
+                  type: form.type as RewardType,
+                  amount: Number(form.amount),
+                  reason: String(form.reason ?? ''),
+                  status: 'pending',
+                });
+                setRewards(prev => [created, ...prev]);
+                setOpenAdd(false);
+                setForm({ type: 'recruitment', status: 'pending', amount: 0 });
+              }}>保存</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* 统计卡片 */}
@@ -208,7 +269,7 @@ export default function Rewards() {
                   <SelectValue placeholder="类型" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">全部类型</SelectItem>
+                  <SelectItem value="all">全部类型</SelectItem>
                   {Object.entries(typeLabels).map(([value, label]) => (
                     <SelectItem key={value} value={value}>{label}</SelectItem>
                   ))}
@@ -219,12 +280,17 @@ export default function Rewards() {
                   <SelectValue placeholder="状态" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">全部状态</SelectItem>
+                  <SelectItem value="all">全部状态</SelectItem>
                   {Object.entries(statusLabels).map(([value, label]) => (
                     <SelectItem key={value} value={value}>{label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <div className="flex items-center gap-2">
+                <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-40" />
+                <span className="text-muted-foreground text-sm">至</span>
+                <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-40" />
+              </div>
             </div>
             <Button variant="outline">
               <Filter className="mr-2 h-4 w-4" />
@@ -338,12 +404,21 @@ export default function Rewards() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem>查看详情</DropdownMenuItem>
-                            <DropdownMenuItem>编辑奖励</DropdownMenuItem>
-                            <DropdownMenuItem>发放记录</DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive">
-                              删除奖励
-                            </DropdownMenuItem>
+                          <DropdownMenuItem onClick={async () => {
+                            const amount = prompt('调整金额(¥)', String(reward.amount));
+                            if (amount == null) return;
+                            const reason = prompt('调整原因', reward.reason ?? '') ?? reward.reason ?? '';
+                            const updated = await updateReward(reward.id, { amount: Number(amount), reason });
+                            if (updated) setRewards(prev => prev.map(r => r.id === reward.id ? updated : r));
+                          }}>编辑奖励</DropdownMenuItem>
+                          <DropdownMenuItem onClick={async () => {
+                            const ok = confirm('确认删除奖励记录？');
+                            if (!ok) return;
+                            const success = await deleteReward(reward.id);
+                            if (success) setRewards(prev => prev.filter(r => r.id !== reward.id));
+                          }} className="text-destructive">
+                            删除奖励
+                          </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
@@ -359,6 +434,51 @@ export default function Rewards() {
               <p className="text-muted-foreground">未找到匹配的奖励记录</p>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* 发放记录（已发放） */}
+      <Card>
+        <CardHeader>
+          <CardTitle>发放记录</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex justify-end mb-2">
+            <Button variant="outline" onClick={() => {
+              const sp = new URLSearchParams();
+              if (typeFilter !== 'all') sp.set('type', typeFilter);
+              if (fromDate) sp.set('from', fromDate);
+              if (toDate) sp.set('to', toDate);
+              window.location.href = `/exports?${sp.toString()}`;
+            }}>导出奖励</Button>
+          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>申请人</TableHead>
+                <TableHead>类型</TableHead>
+                <TableHead>金额</TableHead>
+                <TableHead>原因</TableHead>
+                <TableHead>发放时间</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rewards.filter(r => r.status === 'paid').map(r => (
+                <TableRow key={`paid_${r.id}`}>
+                  <TableCell>{r.userName}</TableCell>
+                  <TableCell>{typeLabels[r.type]}</TableCell>
+                  <TableCell>¥{r.amount.toLocaleString()}</TableCell>
+                  <TableCell className="max-w-xs truncate" title={r.reason}>{r.reason}</TableCell>
+                  <TableCell>{new Date(r.updatedAt || r.createdAt).toLocaleDateString('zh-CN')}</TableCell>
+                </TableRow>
+              ))}
+              {rewards.filter(r => r.status === 'paid').length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center text-muted-foreground">暂无发放记录</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
     </div>

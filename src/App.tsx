@@ -11,8 +11,17 @@ import Students from "./pages/Students";
 import Exams from "./pages/Exams";
 import Rewards from "./pages/Rewards";
 import NotFound from "./pages/NotFound";
+import AuthLogin from "./pages/AuthLogin";
+import AuthRegister from "./pages/AuthRegister";
+import Approvals from "./pages/Approvals";
+import Courses from "./pages/Courses";
+import Schedules from "./pages/Schedules";
 import { useAppStore } from "@/store/useAppStore";
-import { mockUsers } from "@/mock";
+import Notifications from "./pages/Notifications";
+import Settings from "./pages/Settings";
+import Exports from "./pages/Exports";
+import Finance from "./pages/Finance";
+import Assessments from "./pages/Assessments";
 
 const queryClient = new QueryClient();
 
@@ -21,11 +30,8 @@ const App = () => {
 
   // 模拟登录状态，实际项目中应该从后端验证
   React.useEffect(() => {
-    if (!isAuthenticated) {
-      // 模拟登录用户为总经理
-      setUser(mockUsers[0]);
-    }
-  }, [setUser, isAuthenticated]);
+    // 不再在应用启动时强行模拟登录
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -34,14 +40,22 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <Routes>
+            <Route path="/login" element={<AuthLogin />} />
+            <Route path="/register" element={<AuthRegister />} />
             <Route path="/" element={<AppLayout />}>
               <Route index element={<Dashboard />} />
+              <Route path="approvals" element={<Approvals />} />
               <Route path="users" element={<Users />} />
               <Route path="students" element={<Students />} />
+              <Route path="courses" element={<Courses />} />
+              <Route path="schedules" element={<Schedules />} />
               <Route path="exams" element={<Exams />} />
               <Route path="rewards" element={<Rewards />} />
-              <Route path="assessments" element={<div>考核管理页面</div>} />
-              <Route path="settings" element={<div>系统设置页面</div>} />
+              <Route path="assessments" element={<Assessments />} />
+              <Route path="notifications" element={<Notifications />} />
+              <Route path="settings" element={<Settings />} />
+              <Route path="exports" element={<Exports />} />
+              <Route path="finance" element={<Finance />} />
             </Route>
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
