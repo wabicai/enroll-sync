@@ -55,15 +55,17 @@ All colors MUST be HSL.
 
     --radius: 0.5rem;
 
-    /* 侧边栏设计 */
-    --sidebar-background: 217 91% 98%;
-    --sidebar-foreground: 217 30% 18%;
+    /* 侧边栏设计 - 优化版 */
+    --sidebar-background: linear-gradient(135deg, hsl(220 20% 97%), hsl(217 20% 96%));
+    --sidebar-foreground: 215 25% 27%;
     --sidebar-primary: 217 91% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217 91% 95%;
-    --sidebar-accent-foreground: 217 30% 18%;
-    --sidebar-border: 217 30% 88%;
+    --sidebar-accent: 217 40% 92%;
+    --sidebar-accent-foreground: 215 25% 27%;
+    --sidebar-border: 220 14% 91%;
     --sidebar-ring: 217 91% 60%;
+    --sidebar-active-indicator: 217 91% 60%;
+    --sidebar-hover: 217 30% 95%;
 
     /* 图表色彩 */
     --chart-1: 217 91% 60%;
@@ -129,15 +131,17 @@ All colors MUST be HSL.
     --input: 217.2 32.6% 17.5%;
     --ring: 217 91% 65%;
 
-    /* 深色模式侧边栏 */
-    --sidebar-background: 222.2 84% 6%;
-    --sidebar-foreground: 210 40% 98%;
+    /* 深色模式侧边栏 - 优化版 */
+    --sidebar-background: linear-gradient(135deg, hsl(223 30% 9%), hsl(220 25% 8%));
+    --sidebar-foreground: 213 31% 91%;
     --sidebar-primary: 217 91% 65%;
     --sidebar-primary-foreground: 222.2 84% 4.9%;
-    --sidebar-accent: 217.2 32.6% 17.5%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217.2 32.6% 17.5%;
+    --sidebar-accent: 220 15% 15%;
+    --sidebar-accent-foreground: 213 31% 91%;
+    --sidebar-border: 220 10% 20%;
     --sidebar-ring: 217 91% 65%;
+    --sidebar-active-indicator: 217 91% 65%;
+    --sidebar-hover: 220 20% 12%;
 
     /* 深色模式图表色彩 */
     --chart-1: 217 91% 65%;
