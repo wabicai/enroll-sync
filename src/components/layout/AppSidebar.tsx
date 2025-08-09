@@ -129,8 +129,8 @@ export function AppSidebar() {
 
   return (
     <Sidebar 
-      className={`border-r border-sidebar-border ${!open ? 'w-16' : 'w-64'} transition-all duration-300`}
-      collapsible="icon"
+      className={`border-r border-sidebar-border transition-all duration-300`}
+      collapsible="offcanvas"
       style={{ background: 'var(--sidebar-background)' }}
     >
       <SidebarContent>
