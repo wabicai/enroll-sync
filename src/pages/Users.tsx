@@ -153,12 +153,20 @@ export default function Users() {
                 </div>
                 <div>
                   <Label>招生身份（可选）</Label>
-                  <Select value={(addForm.identity as string) || ''} onValueChange={(v) => setAddForm({ ...addForm, identity: v as RecruitmentIdentity })}>
+                  <Select
+                    value={addForm.identity ? String(addForm.identity) : 'none'}
+                    onValueChange={(v) =>
+                      setAddForm({
+                        ...addForm,
+                        identity: v === 'none' ? undefined : (v as RecruitmentIdentity),
+                      })
+                    }
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="选择身份（可不选）" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">无</SelectItem>
+                      <SelectItem value="none">无</SelectItem>
                       {Object.entries(identityLabels).map(([value, label]) => (
                         <SelectItem key={value} value={value}>{label}</SelectItem>
                       ))}
