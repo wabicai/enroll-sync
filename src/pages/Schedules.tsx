@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import type { Schedule } from '@/types';
-import { fetchSchedules, createSchedule, setScheduleStatus, occupySeat, releaseSeat, fetchCourseNamesList, updateSchedule } from '@/lib/api';
+import { fetchSchedules, createSchedule, setScheduleStatus, occupySeat, releaseSeat, fetchCourseNamesList, updateSchedule, deleteSchedule } from '@/lib/api';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input as TextInput } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -221,28 +221,22 @@ export default function Schedules() {
                     <Badge variant={s.status === 2 ? 'default' : s.status === 3 ? 'destructive' : 'secondary'}>
                       {statusMap[s.status]}
                     </Badge>
-                    <div className="space-x-2 inline-block ml-2">
-                      <Button variant="outline" size="sm" onClick={() => { setSelected(s); setDetailOpen(true); }}>详情</Button>
-                      <Button variant="outline" size="sm" onClick={async () => {
-                        const updated = await setScheduleStatus(s.id, s.status === 2 ? 3 : 2);
-                        if (updated) setSchedules(prev => prev.map(x => x.id === s.id ? updated : x));
-                      }}>切换发布/取消</Button>
-                      <Button variant="outline" size="sm" onClick={async () => {
-                        const nextDate = prompt('调整考试日期(YYYY-MM-DD)', s.exam_date);
-                        if (!nextDate) return;
-                        const updated = await updateSchedule(s.id, { exam_date: nextDate });
-                        if (updated) setSchedules(prev => prev.map(x => x.id === s.id ? updated : x));
-                      }}>调整日期</Button>
-                      <Button variant="outline" size="sm" onClick={() => { setEditing(s); setEditOpen(true); }}>编辑</Button>
-                      <Button variant="outline" size="sm" onClick={async () => {
-                        const updated = await occupySeat(s.id, 1);
-                        if (updated) setSchedules(prev => prev.map(x => x.id === s.id ? updated : x));
-                      }}>占用+1</Button>
-                      <Button variant="outline" size="sm" onClick={async () => {
-                        const updated = await releaseSeat(s.id, 1);
-                        if (updated) setSchedules(prev => prev.map(x => x.id === s.id ? updated : x));
-                      }}>释放-1</Button>
-                    </div>
+                      <div className="space-x-2 inline-block ml-2">
+                        <Button variant="outline" size="sm" onClick={() => { setSelected(s); setDetailOpen(true); }}>详情</Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-destructive"
+                          onClick={async () => {
+                            const ok = confirm(`确认删除该安排：${s.course_name} ${s.exam_date}？`);
+                            if (!ok) return;
+                            const success = await deleteSchedule(s.id);
+                            if (success) setSchedules(prev => prev.filter(x => x.id !== s.id));
+                          }}
+                        >
+                          删除
+                        </Button>
+                      </div>
                   </TableCell>
                 </TableRow>
               ))}

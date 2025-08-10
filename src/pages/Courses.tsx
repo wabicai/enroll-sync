@@ -184,12 +184,7 @@ export default function Courses() {
                       {c.status === 'active' ? '启用' : '停用'}
                     </Badge>
                     <Button variant="ghost" size="sm" onClick={() => { setSelected(c); setDetailOpen(true); }}>详情</Button>
-                    <Button variant="ghost" size="sm" className="ml-2" onClick={async () => {
-                      const updated = await toggleCourseStatus(c.id);
-                      if (updated) setCourses(prev => prev.map(x => x.id === c.id ? updated : x));
-                    }}>切换</Button>
-                    <Button variant="ghost" size="sm" onClick={() => { setEditing(c); setEditOpen(true); }}>编辑</Button>
-                    <Button variant="ghost" size="sm" className="text-destructive" onClick={async () => {
+                    <Button variant="ghost" size="sm" className="text-destructive ml-2" onClick={async () => {
                       const ok = confirm(`确认删除课程 ${c.course_name} ？`);
                       if (!ok) return;
                       const success = await deleteCourse(c.id);

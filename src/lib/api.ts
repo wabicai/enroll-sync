@@ -261,6 +261,15 @@ export async function updateSchedule(scheduleId: string, partial: Partial<Schedu
   return Promise.resolve(null);
 }
 
+export async function deleteSchedule(scheduleId: string): Promise<boolean> {
+  const mod = (await import('@/mock')).mockSchedules as Schedule[];
+  const before = mod.length;
+  const after = mod.filter(s => s.id !== scheduleId);
+  mod.length = 0;
+  mod.push(...after);
+  return Promise.resolve(after.length < before);
+}
+
 // ------ Statistics & Batch Ops aligned with ADMIN_SYSTEM.md ------
 export async function fetchCoursesStatisticsSummary() {
   const list = structuredClone(mockCourses) as Course[];
