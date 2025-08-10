@@ -85,19 +85,22 @@ export const mockUsers: User[] = [
     name: '周待审',
     email: 'pending1@example.com',
     phone: '13800138011',
+    idCard: '110101199005051234',
     role: 'system_admin',
     identity: 'full_time',
     avatar: 'https://images.unsplash.com/photo-1544723795-3fb6469f5b39?w=32&h=32&fit=crop&crop=face',
     status: 'pending',
     createdAt: '2024-08-01T00:00:00Z',
     updatedAt: '2024-08-01T00:00:00Z',
-    teamId: 'team2'
+    teamId: 'team2',
+    tags: ['渠道：抖音']
   },
   {
     id: 'p2',
     name: '吴待审',
     email: 'pending2@example.com',
     phone: '13800138012',
+    idCard: '110101199006061234',
     role: 'system_admin',
     identity: 'part_time',
     avatar: 'https://images.unsplash.com/photo-1547425260-76bcadfb4f2c?w=32&h=32&fit=crop&crop=face',
@@ -105,43 +108,50 @@ export const mockUsers: User[] = [
     createdAt: '2024-08-02T00:00:00Z',
     updatedAt: '2024-08-02T00:00:00Z',
     teamId: 'team3',
-    parentId: '4'
+    parentId: '4',
+    tags: ['渠道：朋友圈']
   },
   {
     id: 'p3',
     name: '郑待审',
     email: 'pending3@example.com',
     phone: '13800138013',
+    idCard: '110101199007071234',
     role: 'system_admin',
     identity: 'channel',
     avatar: 'https://images.unsplash.com/photo-1527980965255-d3b416303d12?w=32&h=32&fit=crop&crop=face',
     status: 'pending',
     createdAt: '2024-08-03T00:00:00Z',
-    updatedAt: '2024-08-03T00:00:00Z'
+    updatedAt: '2024-08-03T00:00:00Z',
+    tags: ['渠道：线下门店']
   },
   {
     id: 'p4',
     name: '王待审',
     email: 'pending4@example.com',
     phone: '13800138014',
+    idCard: '110101199008081234',
     role: 'system_admin',
     identity: 'partner',
     avatar: 'https://images.unsplash.com/photo-1527980965255-d3b416303d12?w=32&h=32&fit=crop&crop=face',
     status: 'pending',
     createdAt: '2024-08-04T00:00:00Z',
-    updatedAt: '2024-08-04T00:00:00Z'
+    updatedAt: '2024-08-04T00:00:00Z',
+    tags: ['渠道：地推']
   },
   {
     id: 'p5',
     name: '冯待审',
     email: 'pending5@example.com',
     phone: '13800138015',
+    idCard: '110101199009091234',
     role: 'system_admin',
     identity: 'part_time_lead',
     avatar: 'https://images.unsplash.com/photo-1527980965255-d3b416303d12?w=32&h=32&fit=crop&crop=face',
     status: 'pending',
     createdAt: '2024-08-05T00:00:00Z',
-    updatedAt: '2024-08-05T00:00:00Z'
+    updatedAt: '2024-08-05T00:00:00Z',
+    tags: ['渠道：推荐']
   }
 ];
 

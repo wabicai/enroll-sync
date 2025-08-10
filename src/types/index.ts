@@ -10,6 +10,7 @@ export interface User {
   name: string;
   email: string;
   phone: string;
+  idCard?: string;
   role: UserRole;
   identity?: RecruitmentIdentity;
   avatar?: string;
@@ -18,6 +19,7 @@ export interface User {
   updatedAt: string;
   teamId?: string;
   parentId?: string; // 上级ID
+  tags?: string[]; // 申请时填写的标签/渠道
 }
 
 // 学员工种类型

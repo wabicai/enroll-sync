@@ -65,7 +65,10 @@ export default function Approvals() {
                     <TableRow key={u.id} className="cursor-pointer hover:bg-muted/50" onClick={() => { setSelectedReg(u); setRegOpen(true); }}>
                       <TableCell>{u.name}</TableCell>
                       <TableCell>{u.email}</TableCell>
-                      <TableCell>{u.role}{u.identity ? ` / ${u.identity}` : ''}</TableCell>
+                      <TableCell>
+                        {({ general_manager: '总经理', finance: '财务', exam_admin: '考务', system_admin: '系统管理员' } as Record<string, string>)[u.role] || u.role}
+                        {u.identity ? ` / ${({ part_time: '兼职', full_time: '全职', team_leader: '团队长', regional_manager: '区域经理', partner: '合伙人', part_time_lead: '兼职负责人', channel: '渠道' } as Record<string, string>)[u.identity] || u.identity}` : ''}
+                      </TableCell>
                       <TableCell>
                         <Badge variant="secondary">待审批</Badge>
                       </TableCell>
@@ -107,8 +110,8 @@ export default function Approvals() {
                   {upgrades.map(item => (
                     <TableRow key={item.id}>
                       <TableCell>{item.userName}</TableCell>
-                      <TableCell>{item.fromIdentity}</TableCell>
-                      <TableCell>{item.toIdentity}</TableCell>
+                      <TableCell>{({ part_time: '兼职', full_time: '全职', freelance: '自由职业', channel: '渠道', part_time_lead: '兼职负责人' } as Record<string, string>)[item.fromIdentity] || item.fromIdentity}</TableCell>
+                      <TableCell>{({ part_time: '兼职', channel: '渠道', part_time_lead: '兼职负责人' } as Record<string, string>)[item.toIdentity] || item.toIdentity}</TableCell>
                       <TableCell>
                         <Badge variant={item.status === 'pending' ? 'secondary' : item.status === 'approved' ? 'default' : 'destructive'}>
                           {item.status}
@@ -151,11 +154,30 @@ export default function Approvals() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <div className="text-sm text-muted-foreground">角色/身份</div>
-                  <div>{selectedReg.role}{selectedReg.identity ? ` / ${selectedReg.identity}` : ''}</div>
+                  <div>
+                    {({ general_manager: '总经理', finance: '财务', exam_admin: '考务', system_admin: '系统管理员' } as Record<string, string>)[selectedReg.role] || selectedReg.role}
+                    {selectedReg.identity ? ` / ${({ part_time: '兼职', full_time: '全职', team_leader: '团队长', regional_manager: '区域经理', partner: '合伙人', part_time_lead: '兼职负责人', channel: '渠道' } as Record<string, string>)[selectedReg.identity] || selectedReg.identity}` : ''}
+                  </div>
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">团队</div>
                   <div>{selectedReg.teamId || '-'}</div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="text-sm text-muted-foreground">身份证号</div>
+                  <div>{selectedReg.idCard || '-'}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">标签/渠道</div>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedReg.tags?.length
+                      ? selectedReg.tags.map((t: string, idx: number) => (
+                          <Badge key={idx} variant="secondary">{t}</Badge>
+                        ))
+                      : '-'}
+                  </div>
                 </div>
               </div>
               <div className="text-sm text-muted-foreground">创建时间：{new Date(selectedReg.createdAt).toLocaleString('zh-CN')}</div>
@@ -191,11 +213,11 @@ export default function Approvals() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <div className="text-sm text-muted-foreground">从身份</div>
-                  <div>{selectedUpgrade.fromIdentity}</div>
+                  <div>{({ part_time: '兼职', full_time: '全职', freelance: '自由职业', channel: '渠道', part_time_lead: '兼职负责人' } as Record<string, string>)[selectedUpgrade.fromIdentity] || selectedUpgrade.fromIdentity}</div>
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">到身份</div>
-                  <div>{selectedUpgrade.toIdentity}</div>
+                  <div>{({ part_time: '兼职', channel: '渠道', part_time_lead: '兼职负责人' } as Record<string, string>)[selectedUpgrade.toIdentity] || selectedUpgrade.toIdentity}</div>
                 </div>
               </div>
               <div>
