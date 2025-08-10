@@ -2,7 +2,7 @@
 export type UserRole = 'general_manager' | 'finance' | 'exam_admin' | 'system_admin';
 
 // 招生人员身份类型
-export type RecruitmentIdentity = 'part_time' | 'full_time' | 'team_leader' | 'regional_manager' | 'partner';
+export type RecruitmentIdentity = 'part_time' | 'full_time' | 'team_leader' | 'regional_manager' | 'partner' | 'part_time_lead' | 'channel';
 
 // 用户信息
 export interface User {

@@ -81,7 +81,6 @@ export const mockUsers: User[] = [
     parentId: '4',
   },
   {
-  {
     id: 'p1',
     name: '周待审',
     email: 'pending1@example.com',
