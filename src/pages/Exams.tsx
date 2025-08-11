@@ -26,7 +26,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { mockExams } from '@/mock';
+import { fetchExams } from '@/lib/api';
 import type { Exam, StudentCategory } from '@/types';
 
 const categoryLabels = {
@@ -45,7 +45,10 @@ const statusLabels = {
 };
 
 export default function Exams() {
-  const [exams, setExams] = useState<Exam[]>(mockExams);
+  const [exams, setExams] = useState<Exam[]>([]);
+  useEffect(() => {
+    fetchExams().then(setExams).catch(() => setExams([]));
+  }, []);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');

@@ -14,8 +14,6 @@ import type {
   UpgradeConditions,
   ReminderPlan,
   ExportRecord,
-  PayrollRecord,
-  FinanceReportSummary,
 } from '@/types';
 
 // Mock用户数据
@@ -523,15 +521,4 @@ export const mockExportRecords: ExportRecord[] = [
 ];
 
 // 财务
-export const mockPayrolls: PayrollRecord[] = [
-  { id: 'p1', userId: '4', userName: '陈招生', month: '2024-07', base: 5000, reward: 1200, deduction: 0, total: 6200, status: 'paid' },
-  { id: 'p2', userId: '5', userName: '刘兼职', month: '2024-07', base: 2000, reward: 600, deduction: 100, total: 2500, status: 'unpaid' },
-];
-
-export const mockFinanceReport: FinanceReportSummary = {
-  month: '2024-07',
-  totalPayroll: 8700,
-  totalReward: 1800,
-  receivable: 56000,
-  received: 42000,
-};
+// 财务 mock 已移除

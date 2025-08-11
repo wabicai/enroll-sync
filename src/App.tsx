@@ -20,7 +20,6 @@ import { useAppStore } from "@/store/useAppStore";
 import Notifications from "./pages/Notifications";
 import Settings from "./pages/Settings";
 import Exports from "./pages/Exports";
-import Finance from "./pages/Finance";
 import Assessments from "./pages/Assessments";
 
 const queryClient = new QueryClient();
@@ -55,7 +54,7 @@ const App = () => {
               <Route path="notifications" element={<Notifications />} />
               <Route path="settings" element={<Settings />} />
               <Route path="exports" element={<Exports />} />
-              <Route path="finance" element={<Finance />} />
+              { /* 财务页已移除 */ }
             </Route>
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

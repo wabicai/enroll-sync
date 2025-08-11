@@ -26,8 +26,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { mockStudents } from '@/mock';
-import { setStudentStatus, updateStudent, createStudent } from '@/lib/api';
+import { fetchStudents, setStudentStatus, updateStudent, createStudent } from '@/lib/api';
 import type { Student, StudentCategory } from '@/types';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -56,7 +55,7 @@ const paymentLabels = {
 };
 
 export default function Students() {
-  const [students, setStudents] = useState<Student[]>(mockStudents);
+  const [students, setStudents] = useState<Student[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -105,6 +104,11 @@ export default function Students() {
     setPaymentFilter(sp.get('payment') || 'all');
     setSortKey((sp.get('sort') as any) || 'createdAt');
     setPage(Number(sp.get('page') || '1'));
+  }, []);
+
+  // 首次加载真实/模拟学员列表
+  useEffect(() => {
+    fetchStudents().then(setStudents).catch(() => setStudents([]));
   }, []);
 
   // URL 持久化 - 写入
@@ -439,12 +443,10 @@ export default function Students() {
                           const next = prompt('修改审核状态(pending/approved/rejected/graduated)', student.status);
                           if (!next) return;
                           const updated = await setStudentStatus(student.id, next as any);
-                          if (updated) {
-                            const idx = students.findIndex(s => s.id === student.id);
-                            const copy = [...students];
-                            copy[idx] = updated;
-                            setStudents(copy);
-                          }
+                          const idx = students.findIndex(s => s.id === student.id);
+                          const copy = [...students];
+                          copy[idx] = updated ? updated : { ...copy[idx], status: next as any };
+                          setStudents(copy);
                         }}>
                           修改审核状态
                         </DropdownMenuItem>

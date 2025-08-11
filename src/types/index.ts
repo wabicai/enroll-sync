@@ -248,22 +248,4 @@ export interface ExportRecord {
 }
 
 // 财务
-export interface PayrollRecord {
-  id: string;
-  userId: string;
-  userName: string;
-  month: string; // YYYY-MM
-  base: number;
-  reward: number;
-  deduction: number;
-  total: number;
-  status: 'unpaid' | 'paid';
-}
-
-export interface FinanceReportSummary {
-  month: string;
-  totalPayroll: number;
-  totalReward: number;
-  receivable: number;
-  received: number;
-}
+// 财务类型已移除

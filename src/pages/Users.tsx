@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,8 +26,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { mockUsers } from '@/mock';
-import { createUser, updateUserStatus, deleteUser } from '@/lib/api';
+import { fetchUsers, createUser, updateUserStatus, deleteUser } from '@/lib/api';
 import type { User, UserRole, RecruitmentIdentity } from '@/types';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -55,7 +54,11 @@ const statusLabels = {
 };
 
 export default function Users() {
-  const [users, setUsers] = useState<User[]>(mockUsers);
+  const [users, setUsers] = useState<User[]>([]);
+  // 初始化从后端拉取用户列表
+  useEffect(() => {
+    fetchUsers().then(setUsers).catch(() => setUsers([]));
+  }, []);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
