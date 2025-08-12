@@ -73,8 +73,67 @@ async function withAuth<T>(fn: () => Promise<Response>): Promise<T> {
     return await fn();
   };
   const res = await doFetch();
-  if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+  if (!res.ok) {
+    // 尝试解析错误响应体
+    let errorMessage = `HTTP ${res.status}`;
+    try {
+      const errorBody = await res.text();
+      if (errorBody) {
+        try {
+          // 尝试解析JSON格式的错误响应
+          const errorJson = JSON.parse(errorBody);
+          if (errorJson.detail) {
+            errorMessage = errorJson.detail;
+          } else if (errorJson.message) {
+            errorMessage = errorJson.message;
+          } else {
+            errorMessage = `HTTP ${res.status}: ${errorBody}`;
+          }
+        } catch {
+          // 非JSON格式，直接使用文本
+          errorMessage = `HTTP ${res.status}: ${errorBody}`;
+        }
+      }
+    } catch {
+      // 无法读取响应体，使用默认错误消息
+      errorMessage = `HTTP ${res.status}: ${res.statusText}`;
+    }
+    
+    // 显示错误提示
+    showApiError(errorMessage, res.status);
+    
+    throw new Error(errorMessage);
+  }
   return res.json() as Promise<T>;
+}
+
+// 全局错误显示函数
+function showApiError(message: string, status: number) {
+  // 动态导入toast避免循环依赖
+  import('@/hooks/use-toast').then(({ toast }) => {
+    let title = '请求失败';
+    let variant: 'destructive' | 'default' = 'destructive';
+    
+    // 根据状态码设置不同的标题
+    if (status === 403) {
+      title = '权限不足';
+    } else if (status === 404) {
+      title = '资源不存在';
+    } else if (status === 400) {
+      title = '请求参数错误';
+    } else if (status === 500) {
+      title = '服务器错误';
+    }
+    
+    toast({
+      title,
+      description: message,
+      variant,
+    });
+  }).catch(() => {
+    // 如果toast加载失败，回退到console.error
+    console.error(`API Error [${status}]: ${message}`);
+  });
 }
 
 async function httpGet<T>(path: string): Promise<T> {
@@ -267,7 +326,7 @@ export async function createUser(partial: Omit<User, 'id' | 'createdAt' | 'updat
       confirm_password: 'ChangeMe123',
       roles: [],
     };
-    const created = await httpPost<any>(`/users`, payload);
+    const created = await httpPost<any>(`${API_V1}/users`, payload);
     return mapBackendUserListItemToUser(created);
   }
   const user: User = {
@@ -284,7 +343,7 @@ export async function createUser(partial: Omit<User, 'id' | 'createdAt' | 'updat
 export async function updateUserStatus(userId: string, status: User['status']): Promise<User | null> {
   if (!USE_MOCK) {
     const statusMap: Record<User['status'], number> = { active: 1, pending: 2, inactive: 4 };
-    const updated = await httpPut<any>(`/users/${userId}`, { status: statusMap[status] || 1 });
+    const updated = await httpPut<any>(`${API_V1}/users/${userId}`, { status: statusMap[status] || 1 });
     return mapBackendUserListItemToUser(updated);
   }
   const mod = (await import('@/mock')).mockUsers as User[];
@@ -298,7 +357,7 @@ export async function updateUserStatus(userId: string, status: User['status']): 
 
 export async function deleteUser(userId: string): Promise<boolean> {
   if (!USE_MOCK) {
-    await httpDelete(`/users/${userId}`);
+    await httpDelete(`${API_V1}/users/${userId}`);
     return true;
   }
   const mod = (await import('@/mock')).mockUsers as User[];
@@ -339,7 +398,7 @@ export async function fetchStudents(): Promise<Student[]> {
     return structuredClone(mockStudents) as Student[];
   }
   const res = await httpGet<{ items: any[]; total: number; page: number; page_size: number; pages: number }>(
-    `/students/exam-students`
+    `${API_V1}/students/exam-students`
   );
   const map = (s: any): Student => ({
     id: String(s.id),
@@ -375,7 +434,7 @@ export async function createStudent(partial: Omit<Student, 'id' | 'createdAt' | 
       employment_intention: null,
       notes: null,
     };
-    const created = await httpPost<any>(`/students/exam-students`, payload);
+    const created = await httpPost<any>(`${API_V1}/students/exam-students`, payload);
     const mapped: Student = {
       id: String(created.id),
       name: created.name,
@@ -409,7 +468,7 @@ export async function createStudent(partial: Omit<Student, 'id' | 'createdAt' | 
 export async function setStudentStatus(studentId: string, status: Student['status']): Promise<Student | null> {
   if (!USE_MOCK) {
     // 后端 ExamStudent 无对应审核状态枚举，这里仅触发一次更新时间，返回前端状态不变
-    await httpPut<any>(`/students/exam-students/${studentId}`, {});
+    await httpPut<any>(`${API_V1}/students/exam-students/${studentId}`, {});
     return null; // 前端自行更新本地状态
   }
   const mod = (await import('@/mock')).mockStudents as Student[];
@@ -442,7 +501,7 @@ export async function updateStudent(studentId: string, partial: Partial<Student>
     if (partial.name) payload.name = partial.name;
     if (partial.phone) payload.phone = partial.phone;
     if (partial.idCard) payload.id_card = partial.idCard;
-    const updated = await httpPut<any>(`/students/exam-students/${studentId}`, payload);
+    const updated = await httpPut<any>(`${API_V1}/students/exam-students/${studentId}`, payload);
     const mapped: Student = {
       id: String(updated.id),
       name: updated.name,
@@ -472,7 +531,7 @@ export async function updateStudent(studentId: string, partial: Partial<Student>
 
 export async function deleteStudent(studentId: string): Promise<boolean> {
   if (!USE_MOCK) {
-    await httpDelete(`/students/exam-students/${studentId}`);
+    await httpDelete(`${API_V1}/students/exam-students/${studentId}`);
     return true;
   }
   const mod = (await import('@/mock')).mockStudents as Student[];
@@ -994,7 +1053,7 @@ export async function updateAssessmentRules(rules: any[]) {
 
 
 
-// Unified Approval Center
+// Unified Approval Center (Legacy - for backward compatibility)
 export async function fetchApprovalsPending(params?: { page?: number; page_size?: number; target_type?: string }) {
   const sp = new URLSearchParams();
   if (params?.page) sp.set('page', String(params.page));
@@ -1005,4 +1064,49 @@ export async function fetchApprovalsPending(params?: { page?: number; page_size?
 
 export async function decideApprovalStep(instanceId: number | string, stepKey: string, approve: boolean, reason?: string) {
   return httpPost(`${API_V1}/approvals/${instanceId}/steps/${stepKey}/decision`, { approve, reason });
+}
+
+// Type-Specific Approval APIs
+export async function fetchUserRegistrationApprovals(params?: { page?: number; page_size?: number }) {
+  const sp = new URLSearchParams();
+  if (params?.page) sp.set('page', String(params.page));
+  if (params?.page_size) sp.set('page_size', String(params.page_size));
+  return httpGet(`${API_V1}/approvals/user-registrations/pending${sp.toString() ? `?${sp.toString()}` : ''}`);
+}
+
+export async function fetchRewardApplicationApprovals(params?: { page?: number; page_size?: number }) {
+  const sp = new URLSearchParams();
+  if (params?.page) sp.set('page', String(params.page));
+  if (params?.page_size) sp.set('page_size', String(params.page_size));
+  return httpGet(`${API_V1}/approvals/rewards/pending${sp.toString() ? `?${sp.toString()}` : ''}`);
+}
+
+export async function fetchStudentEnrollmentApprovals(params?: { page?: number; page_size?: number }) {
+  const sp = new URLSearchParams();
+  if (params?.page) sp.set('page', String(params.page));
+  if (params?.page_size) sp.set('page_size', String(params.page_size));
+  return httpGet(`${API_V1}/approvals/student-enrollments/pending${sp.toString() ? `?${sp.toString()}` : ''}`);
+}
+
+export async function fetchRoleUpgradeApprovals(params?: { page?: number; page_size?: number }) {
+  const sp = new URLSearchParams();
+  if (params?.page) sp.set('page', String(params.page));
+  if (params?.page_size) sp.set('page_size', String(params.page_size));
+  return httpGet(`${API_V1}/approvals/role-upgrades/pending${sp.toString() ? `?${sp.toString()}` : ''}`);
+}
+
+export async function decideUserRegistrationApproval(instanceId: number | string, stepKey: string, approve: boolean, reason?: string) {
+  return httpPost(`${API_V1}/approvals/user-registrations/${instanceId}/steps/${stepKey}/decision`, { approve, reason });
+}
+
+export async function decideRewardApplicationApproval(instanceId: number | string, stepKey: string, approve: boolean, reason?: string) {
+  return httpPost(`${API_V1}/approvals/rewards/${instanceId}/steps/${stepKey}/decision`, { approve, reason });
+}
+
+export async function decideStudentEnrollmentApproval(instanceId: number | string, stepKey: string, approve: boolean, reason?: string) {
+  return httpPost(`${API_V1}/approvals/student-enrollments/${instanceId}/steps/${stepKey}/decision`, { approve, reason });
+}
+
+export async function decideRoleUpgradeApproval(instanceId: number | string, stepKey: string, approve: boolean, reason?: string) {
+  return httpPost(`${API_V1}/approvals/role-upgrades/${instanceId}/steps/${stepKey}/decision`, { approve, reason });
 }
