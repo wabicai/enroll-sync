@@ -2,15 +2,23 @@ import { useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import type { ApiResponse } from '@/types';
 
-// API配置
-const API_MODES = {
+// API配置 - 统一的环境控制
+const API_CONFIG = {
   MOCK: 'mock',
   LOCAL: 'http://localhost:3000/api/v1',
   PRODUCTION: 'https://chuangningpeixun.com/api/v1'
 } as const;
 
-// 当前API模式，可以通过环境变量或配置切换
-const currentMode = 'mock'; // 默认使用mock模式
+// 当前API模式，通过环境变量控制
+const getCurrentMode = () => {
+  const useMock = (import.meta as any).env?.VITE_USE_MOCK === 'true';
+  if (useMock) return 'mock';
+  
+  const mode = (import.meta as any).env?.MODE;
+  return mode === 'production' ? 'production' : 'local';
+};
+
+const currentMode = getCurrentMode();
 
 interface UseApiOptions {
   showErrorToast?: boolean;
@@ -36,7 +44,7 @@ export const useApi = <T = any>(options: UseApiOptions = {}) => {
       
       // 根据模式构建URL
       if (currentMode !== 'mock') {
-        const baseUrl = currentMode === 'local' ? API_MODES.LOCAL : API_MODES.PRODUCTION;
+        const baseUrl = currentMode === 'local' ? API_CONFIG.LOCAL : API_CONFIG.PRODUCTION;
         url = `${baseUrl}${endpoint}`;
       }
       
@@ -122,8 +130,5 @@ export const useApi = <T = any>(options: UseApiOptions = {}) => {
   };
 };
 
-// 切换API模式的工具函数
-export const setApiMode = (mode: keyof typeof API_MODES) => {
-  // 这里可以实现动态切换API模式的逻辑
-  console.log(`切换API模式到: ${mode}`);
-};
+// 导出当前配置供其他模块使用
+export { currentMode, API_CONFIG };

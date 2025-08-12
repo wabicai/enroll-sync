@@ -1,9 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { currentMode, API_CONFIG } from '@/hooks/useApi';
 import {
   mockCourses,
   mockSchedules,
-  mockUsers,
-  mockUpgradeApplications,
   mockNotifications,
   mockNotificationTemplates,
   mockRuleConfig,
@@ -13,15 +12,13 @@ import {
 } from '@/mock';
 import type { Course, Schedule, NotificationItem, NotificationTemplate, RuleConfig, UpgradeConditions, ReminderPlan, ExportRecord, User, Student, Reward, Exam } from '@/types';
 
-// Runtime config: mock vs real API
-const USE_MOCK = (import.meta as any).env?.MODE !== 'production' || (import.meta as any).env?.VITE_USE_MOCK === 'true';
-const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:8000';
-const API_V1 = '/api/v1';
+// 统一的API配置
+const USE_MOCK = currentMode === 'mock';
+const API_BASE_URL = currentMode === 'production' ? API_CONFIG.PRODUCTION : API_CONFIG.LOCAL;
+const API_V1 = currentMode === 'mock' ? '/api/v1' : '';
 
 // Backend response types
 type BackendPaged<T> = { items: T[]; total: number; page?: number; page_size?: number; pages?: number };
-type BackendUserListItem = { id: number; username: string; real_name: string; phone: string; id_card: string; status: number; roles: string[]; created_at: string; updated_at: string };
-type BackendExamStudent = { id: number; name: string; id_card: string; phone: string; created_at: string; updated_at: string };
 type BackendNotification = { id: number; title: string; content: string; type: NotificationItem['type']; is_read: boolean; created_at: string };
 
 async function httpGet<T>(path: string): Promise<T> {
@@ -86,42 +83,6 @@ export async function fetchSchedules(): Promise<Schedule[]> {
   return data as Schedule[];
 }
 
-export async function fetchPendingRegistrations() {
-  if (USE_MOCK) return Promise.resolve(structuredClone(mockUsers.filter(u => u.status === 'pending')));
-  // 后端统一审批中心
-  const res = await httpGet<{ items: any[]; total: number }>(`${API_V1}/audits/pending`);
-  // 仅筛选用户注册类型
-  return res.items
-    .filter(it => it.type === 'user_registration')
-    .map(it => ({
-      id: it.id,
-      name: it.applicant,
-      email: it.details?.username || '-',
-      phone: it.phone || '-',
-      role: 'system_admin',
-      status: 'pending',
-      createdAt: it.application_time,
-      tags: [],
-    }));
-}
-
-export async function fetchUpgradeApplications() {
-  if (USE_MOCK) return Promise.resolve(structuredClone(mockUpgradeApplications));
-  // 统一审批中心中无直给升级申请列表，这里可复用 /audits/pending 后端类型=upgrade
-  const res = await httpGet<{ items: any[] }>(`${API_V1}/audits/pending`);
-  return res.items.filter(it => it.type === 'upgrade');
-}
-
-// 审批处理
-export async function approveAudit(auditId: string, reason?: string) {
-  if (USE_MOCK) return { success: true } as any;
-  return httpPost(`${API_V1}/audits/${auditId}/approve${reason ? `?reason=${encodeURIComponent(reason)}` : ''}`);
-}
-
-export async function rejectAudit(auditId: string, reason: string) {
-  if (USE_MOCK) return { success: true } as any;
-  return httpPost(`${API_V1}/audits/${auditId}/reject?reason=${encodeURIComponent(reason)}`);
-}
 
 // 通知中心
 export async function fetchNotifications(): Promise<NotificationItem[]> {
@@ -387,7 +348,7 @@ export async function createStudent(partial: Omit<Student, 'id' | 'createdAt' | 
 export async function setStudentStatus(studentId: string, status: Student['status']): Promise<Student | null> {
   if (!USE_MOCK) {
     // 后端 ExamStudent 无对应审核状态枚举，这里仅触发一次更新时间，返回前端状态不变
-    const updated = await httpPut<any>(`/students/exam-students/${studentId}`, {});
+    await httpPut<any>(`/students/exam-students/${studentId}`, {});
     return null; // 前端自行更新本地状态
   }
   const mod = (await import('@/mock')).mockStudents as Student[];
@@ -772,11 +733,6 @@ export async function fetchExams(): Promise<Exam[]> {
   } as Exam));
 }
 
-// Students extra endpoints per ADMIN_SYSTEM.md
-export async function fetchPendingReviewStudents(): Promise<Student[]> {
-  const mod = (await import('@/mock')).mockStudents as Student[];
-  return Promise.resolve(structuredClone(mod.filter(s => s.status === 'pending')));
-}
 
 export async function fetchStudentsPaymentStatus() {
   const mod = (await import('@/mock')).mockStudents as Student[];
@@ -921,6 +877,7 @@ export async function fetchRewardApprovalsUnified() {
   );
 }
 
+
 export async function auditRewardApplication(applicationId: string | number, step: 'exam' | 'gm', approve: boolean, reason?: string) {
   if (USE_MOCK) return { success: true } as any;
   const path = step === 'gm' ? `${API_V1}/rewards/applications/${applicationId}/audit-gm` : `${API_V1}/rewards/applications/${applicationId}/audit-exam`;
@@ -928,3 +885,49 @@ export async function auditRewardApplication(applicationId: string | number, ste
 }
 
 
+// Assessments API
+export async function fetchAssessmentsMonthly(params: { period: string; page?: number; page_size?: number; identity?: string; }) {
+  if (USE_MOCK) {
+    const { mockAssessments } = await import('@/mock');
+    return { items: mockAssessments, total: mockAssessments.length, page: 1, page_size: mockAssessments.length, pages: 1 };
+  }
+  const sp = new URLSearchParams();
+  sp.set('period', params.period);
+  if (params.page) sp.set('page', String(params.page));
+  if (params.page_size) sp.set('page_size', String(params.page_size));
+  if (params.identity) sp.set('identity', params.identity);
+  return httpGet(`${API_V1}/assessments/monthly?${sp.toString()}`);
+}
+
+export async function calculateAssessments(period: string, force = false) {
+  if (USE_MOCK) return { success: true } as any;
+  return httpPost(`${API_V1}/assessments/calculate`, { period, force_recalculate: force });
+}
+
+export async function fetchAssessmentWarnings(period: string, identity?: string) {
+  if (USE_MOCK) return { items: [] } as any;
+  const sp = new URLSearchParams();
+  sp.set('period', period);
+  if (identity) sp.set('identity', identity);
+  return httpGet(`${API_V1}/assessments/warnings?${sp.toString()}`);
+}
+
+export async function updateAssessmentRules(rules: any[]) {
+  if (USE_MOCK) return { success: true } as any;
+  return httpPut(`${API_V1}/assessments/rules`, { rules });
+}
+
+
+
+// Unified Approval Center
+export async function fetchApprovalsPending(params?: { page?: number; page_size?: number; target_type?: string }) {
+  const sp = new URLSearchParams();
+  if (params?.page) sp.set('page', String(params.page));
+  if (params?.page_size) sp.set('page_size', String(params.page_size));
+  if (params?.target_type) sp.set('target_type', params.target_type);
+  return httpGet(`${API_V1}/approvals/pending${sp.toString() ? `?${sp.toString()}` : ''}`);
+}
+
+export async function decideApprovalStep(instanceId: number | string, stepKey: string, approve: boolean, reason?: string) {
+  return httpPost(`${API_V1}/approvals/${instanceId}/steps/${stepKey}/decision`, { approve, reason });
+}
