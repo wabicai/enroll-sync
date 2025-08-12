@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,11 +25,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { mockRewards } from '@/mock';
 import type { Reward, RewardType } from '@/types';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { createReward, updateRewardStatus, deleteReward, updateReward } from '@/lib/api';
+import { fetchRewards, createReward, updateReward, deleteReward, applyReward } from '@/lib/api';
 
 const typeLabels = {
   recruitment: '招生奖励',
@@ -38,6 +37,7 @@ const typeLabels = {
   special: '特殊奖励',
 };
 
+// backend mapping reminder: 1=pending(AVAILABLE/APPLYING), 3=approved, 4=rejected, 5=paid
 const statusLabels = {
   pending: '待审核',
   approved: '已审核',
@@ -46,8 +46,27 @@ const statusLabels = {
 };
 
 export default function Rewards() {
-  const [rewards, setRewards] = useState<Reward[]>(mockRewards);
+  const [rewards, setRewards] = useState<Reward[]>([]);
   const [openAdd, setOpenAdd] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // initial load from backend
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        setLoading(true);
+        const list = await fetchRewards();
+        if (mounted) setRewards(list);
+      } catch (e: any) {
+        setError(e?.message || '加载失败');
+      } finally {
+        setLoading(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
   const [form, setForm] = useState<Partial<Reward>>({ type: 'recruitment', status: 'pending', amount: 0 });
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -56,8 +75,8 @@ export default function Rewards() {
   const [toDate, setToDate] = useState<string>('');
 
   const filteredRewards = rewards.filter(reward => {
-    const matchesSearch = reward.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         reward.reason.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = reward.userName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         reward.reason?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = typeFilter === 'all' || reward.type === typeFilter;
     const matchesStatus = statusFilter === 'all' || reward.status === statusFilter;
     const created = new Date(reward.createdAt).toISOString().slice(0,10);
@@ -66,19 +85,16 @@ export default function Rewards() {
     return matchesSearch && matchesType && matchesStatus && matchesFrom && matchesTo;
   });
 
-  const handleApprove = async (rewardId: string) => {
-    const updated = await updateRewardStatus(rewardId, 'approved');
-    if (updated) setRewards(prev => prev.map(r => r.id === rewardId ? { ...updated, approvedBy: '2', approvedAt: new Date().toISOString() } : r));
+  const handleApprove = async (_rewardId: string) => {
+    alert('奖励审批已迁移至统一审批中心，请通过“审批中心”处理。');
   };
 
-  const handleReject = async (rewardId: string) => {
-    const updated = await updateRewardStatus(rewardId, 'rejected');
-    if (updated) setRewards(prev => prev.map(r => r.id === rewardId ? updated : r));
+  const handleReject = async (_rewardId: string) => {
+    alert('奖励审批已迁移至统一审批中心，请通过“审批中心”处理。');
   };
 
-  const handlePay = async (rewardId: string) => {
-    const updated = await updateRewardStatus(rewardId, 'paid');
-    if (updated) setRewards(prev => prev.map(r => r.id === rewardId ? updated : r));
+  const handlePay = async (_rewardId: string) => {
+    alert('奖励发放请使用财务批量发放或对应后端接口。');
   };
 
   const getStatusVariant = (status: string) => {
@@ -169,14 +185,23 @@ export default function Rewards() {
             </div>
             <DialogFooter>
               <Button onClick={async () => {
-                if (!form.userId || !form.userName || !form.type || form.amount === undefined) return;
+                // For real backend: need student_enrollment_id, recruiter_user_id, amounts, etc.
+                const enrollmentIdStr = prompt('关联报考记录ID (student_enrollment_id)');
+                const recruiterIdStr = prompt('招生员用户ID (recruiter_user_id)');
+                const totalFeeStr = prompt('总学费(¥)', '2000');
+                const paidAmountStr = prompt('已付金额(¥)', '2000');
+                const paymentDateStr = prompt('缴费日期(YYYY-MM-DD)', new Date().toISOString().slice(0,10));
+                const rewardAmountStr = prompt('奖励金额(¥)', String(form.amount ?? 0));
+                if (!enrollmentIdStr || !recruiterIdStr || !totalFeeStr || !paidAmountStr || !paymentDateStr) return;
                 const created = await createReward({
-                  userId: String(form.userId),
-                  userName: String(form.userName),
-                  type: form.type as RewardType,
-                  amount: Number(form.amount),
-                  reason: String(form.reason ?? ''),
-                  status: 'pending',
+                  student_enrollment_id: Number(enrollmentIdStr),
+                  recruiter_user_id: Number(recruiterIdStr),
+                  total_fee: Number(totalFeeStr),
+                  payment_type: 1,
+                  paid_amount: Number(paidAmountStr),
+                  payment_date: paymentDateStr,
+                  reward_amount: Number(rewardAmountStr || 0),
+                  tags: String(form.reason ?? '')
                 });
                 setRewards(prev => [created, ...prev]);
                 setOpenAdd(false);
@@ -373,29 +398,20 @@ export default function Rewards() {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => handleApprove(reward.id)}
-                              className="h-8 w-8 p-0"
+                              onClick={async () => {
+                                const month = prompt('申请月份(YYYY-MM)');
+                                const reason = prompt('申请原因', '按规则发放') || '';
+                                if (!month) return;
+                                await applyReward(reward.id, month, reason);
+                                alert('已提交申请，等待审批');
+                              }}
                             >
-                              <Check className="h-4 w-4 text-green-600" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleReject(reward.id)}
-                              className="h-8 w-8 p-0"
-                            >
-                              <X className="h-4 w-4 text-red-600" />
+                              提交申请
                             </Button>
                           </>
                         )}
                         {reward.status === 'approved' && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handlePay(reward.id)}
-                          >
-                            发放
-                          </Button>
+                          <span className="text-muted-foreground text-sm">待财务发放</span>
                         )}
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>

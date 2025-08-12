@@ -22,6 +22,12 @@ import Settings from "./pages/Settings";
 import Exports from "./pages/Exports";
 import Assessments from "./pages/Assessments";
 
+import RequireAuth from "./components/auth/RequireAuth";
+
+const Protected = ({ children }: { children: JSX.Element }) => (
+  <RequireAuth>{children}</RequireAuth>
+);
+
 const queryClient = new QueryClient();
 
 const App = () => {
@@ -43,17 +49,17 @@ const App = () => {
             <Route path="/register" element={<AuthRegister />} />
             <Route path="/" element={<AppLayout />}>
               <Route index element={<Dashboard />} />
-              <Route path="approvals" element={<Approvals />} />
-              <Route path="users" element={<Users />} />
-              <Route path="students" element={<Students />} />
-              <Route path="courses" element={<Courses />} />
-              <Route path="schedules" element={<Schedules />} />
-              <Route path="exams" element={<Exams />} />
-              <Route path="rewards" element={<Rewards />} />
-              <Route path="assessments" element={<Assessments />} />
-              <Route path="notifications" element={<Notifications />} />
-              <Route path="settings" element={<Settings />} />
-              <Route path="exports" element={<Exports />} />
+              <Route path="approvals" element={<Protected><Approvals /></Protected>} />
+              <Route path="users" element={<Protected><Users /></Protected>} />
+              <Route path="students" element={<Protected><Students /></Protected>} />
+              <Route path="courses" element={<Protected><Courses /></Protected>} />
+              <Route path="schedules" element={<Protected><Schedules /></Protected>} />
+              <Route path="exams" element={<Protected><Exams /></Protected>} />
+              <Route path="rewards" element={<Protected><Rewards /></Protected>} />
+              <Route path="assessments" element={<Protected><Assessments /></Protected>} />
+              <Route path="notifications" element={<Protected><Notifications /></Protected>} />
+              <Route path="settings" element={<Protected><Settings /></Protected>} />
+              <Route path="exports" element={<Protected><Exports /></Protected>} />
               { /* 财务页已移除 */ }
             </Route>
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

@@ -220,7 +220,7 @@ export default function Approvals() {
           {selectedApproval && (() => {
             const { inst, steps } = selectedApproval;
             const current = steps[inst.current_step_index];
-            const stepLabel: Record<string, string> = { exam: '考务', finance: '财务', gm: '总经理' };
+            const stepLabel: Record<string, string> = { finance: '财务', gm: '总经理' };
             const can = (k: string) => current?.step_key === k;
             return (
               <div className="space-y-4 py-4">
@@ -245,7 +245,7 @@ export default function Approvals() {
                   </div>
                 </div>
                 <div className="flex justify-end gap-2">
-                  {['exam','finance','gm'].map(k => (
+                  {['finance','gm'].map(k => (
                     <Button key={k} disabled={!can(k)} variant="outline" onClick={async () => {
                       await decideApprovalStep(inst.id, k, true);
                       setApprovalOpen(false);

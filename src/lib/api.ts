@@ -15,55 +15,115 @@ import type { Course, Schedule, NotificationItem, NotificationTemplate, RuleConf
 // 统一的API配置
 const USE_MOCK = currentMode === 'mock';
 const API_BASE_URL = currentMode === 'production' ? API_CONFIG.PRODUCTION : API_CONFIG.LOCAL;
-const API_V1 = currentMode === 'mock' ? '/api/v1' : '';
+// If base already ends with /api/v1, avoid double-prefixing; otherwise add it
+const API_V1 = API_BASE_URL.endsWith('/api/v1') ? '' : '/api/v1';
+// Auth
+export type BackendLoginResponse = {
+  token: { access_token: string; refresh_token: string; token_type: string; expires_in: number };
+  user: any;
+  current_role?: any;
+};
+
+export async function loginAdmin(username: string, password: string): Promise<BackendLoginResponse> {
+  // no auth header required here
+  const res = await fetch(`${API_BASE_URL}${API_V1}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ username, password }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+  return res.json() as Promise<BackendLoginResponse>;
+}
+
+export async function logout(): Promise<void> {
+  try {
+    await fetch(`${API_BASE_URL}${API_V1}/auth/logout`, { method: 'POST', credentials: 'include' });
+  } catch {}
+}
+
+export async function refreshAccessTokenApi(): Promise<{ access_token: string; refresh_token: string; token_type: string; expires_in: number } | null> {
+  const { refreshToken } = (await import('@/store/useAppStore')).useAppStore.getState();
+  if (!refreshToken) return null;
+  const res = await fetch(`${API_BASE_URL}${API_V1}/auth/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
 
 // Backend response types
 type BackendPaged<T> = { items: T[]; total: number; page?: number; page_size?: number; pages?: number };
 type BackendNotification = { id: number; title: string; content: string; type: NotificationItem['type']; is_read: boolean; created_at: string };
 
-async function httpGet<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_BASE_URL}${path}`, { credentials: 'include' });
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status}: ${await res.text()}`);
-  }
+async function withAuth<T>(fn: () => Promise<Response>): Promise<T> {
+  const store = (await import('@/store/useAppStore')).useAppStore.getState();
+  const doFetch = async () => {
+    const res = await fn();
+    if (res.status !== 401) return res;
+    // try refresh once
+    const refreshed = await refreshAccessTokenApi();
+    if (!refreshed) return res;
+    // save new tokens and retry once
+    (await import('@/store/useAppStore')).useAppStore.getState().setTokens(refreshed.access_token, refreshed.refresh_token);
+    return await fn();
+  };
+  const res = await doFetch();
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
   return res.json() as Promise<T>;
+}
+
+async function httpGet<T>(path: string): Promise<T> {
+  const { accessToken } = (await import('@/store/useAppStore')).useAppStore.getState();
+  const headers: Record<string, string> = {};
+  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+  return withAuth<T>(() => fetch(`${API_BASE_URL}${path}`, { credentials: 'include', headers }));
 }
 
 async function httpPost<T>(path: string, body?: any): Promise<T> {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
+  const { accessToken } = (await import('@/store/useAppStore')).useAppStore.getState();
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+  return withAuth<T>(() => fetch(`${API_BASE_URL}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     credentials: 'include',
     body: body ? JSON.stringify(body) : undefined,
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
-  return res.json() as Promise<T>;
+  }));
 }
 
 async function httpPut<T>(path: string, body?: any): Promise<T> {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
+  const { accessToken } = (await import('@/store/useAppStore')).useAppStore.getState();
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+  return withAuth<T>(() => fetch(`${API_BASE_URL}${path}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     credentials: 'include',
     body: body ? JSON.stringify(body) : undefined,
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
-  return res.json() as Promise<T>;
+  }));
 }
 
 async function httpDelete<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
+  const { accessToken } = (await import('@/store/useAppStore')).useAppStore.getState();
+  const headers: Record<string, string> = {};
+  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+  return withAuth<T>(() => fetch(`${API_BASE_URL}${path}`, {
     method: 'DELETE',
     credentials: 'include',
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
-  return res.json() as Promise<T>;
+    headers,
+  }));
 }
 
 export async function fetchCourses(): Promise<Course[]> {
   if (USE_MOCK) return Promise.resolve(structuredClone(mockCourses));
-  const data = await httpGet<any[]>(`/api/v1/courses`);
-  return data as Course[];
+  const res = await httpGet<{ items: any[]; total: number; page: number; page_size: number; pages: number }>(`/api/v1/courses`);
+  const items = (res.items || []) as any[];
+  return items as Course[];
 }
 
 // Users
@@ -79,8 +139,9 @@ export async function fetchUsers(): Promise<User[]> {
 
 export async function fetchSchedules(): Promise<Schedule[]> {
   if (USE_MOCK) return Promise.resolve(structuredClone(mockSchedules));
-  const data = await httpGet<any[]>(`/api/v1/schedules`);
-  return data as Schedule[];
+  const res = await httpGet<{ items: any[]; total: number; page: number; page_size: number; pages: number }>(`/api/v1/schedules`);
+  const items = (res.items || []) as any[];
+  return items as Schedule[];
 }
 
 
@@ -520,7 +581,8 @@ export async function createSchedule(partial: Omit<Schedule, 'id' | 'createdAt' 
 
 export async function setScheduleStatus(scheduleId: string, status: Schedule['status']): Promise<Schedule | null> {
   if (!USE_MOCK) {
-    const updated = await httpPut<Schedule>(`/api/v1/schedules/${scheduleId}/status`, { status });
+    // Backend expects { new_status }
+    const updated = await httpPut<Schedule>(`/api/v1/schedules/${scheduleId}/status`, { new_status: status });
     return updated;
   }
   const mod = (await import('@/mock')).mockSchedules as Schedule[];
@@ -534,8 +596,12 @@ export async function setScheduleStatus(scheduleId: string, status: Schedule['st
 
 export async function occupySeat(scheduleId: string, count = 1): Promise<Schedule | null> {
   if (!USE_MOCK) {
-    const updated = await httpPost<Schedule>(`/api/v1/schedules/${scheduleId}/occupy-seat`, { count });
-    return updated;
+    // Backend endpoint occupies one seat per call; loop for count
+    const times = Math.max(1, Math.floor(count));
+    for (let i = 0; i < times; i++) {
+      await httpPost<any>(`/api/v1/schedules/${scheduleId}/occupy-seat`, {});
+    }
+    return httpGet<Schedule>(`/api/v1/schedules/${scheduleId}`);
   }
   const mod = (await import('@/mock')).mockSchedules as Schedule[];
   const idx = mod.findIndex(s => s.id === scheduleId);
@@ -550,8 +616,11 @@ export async function occupySeat(scheduleId: string, count = 1): Promise<Schedul
 
 export async function releaseSeat(scheduleId: string, count = 1): Promise<Schedule | null> {
   if (!USE_MOCK) {
-    const updated = await httpPost<Schedule>(`/api/v1/schedules/${scheduleId}/release-seat`, { count });
-    return updated;
+    const times = Math.max(1, Math.floor(count));
+    for (let i = 0; i < times; i++) {
+      await httpPost<any>(`/api/v1/schedules/${scheduleId}/release-seat`, {});
+    }
+    return httpGet<Schedule>(`/api/v1/schedules/${scheduleId}`);
   }
   const mod = (await import('@/mock')).mockSchedules as Schedule[];
   const idx = mod.findIndex(s => s.id === scheduleId);
@@ -606,7 +675,8 @@ export async function fetchCoursesStatisticsSummary() {
 
 export async function coursesBatchActivate(ids: string[]): Promise<number> {
   if (!USE_MOCK) {
-    const res = await httpPost<{ changed: number }>(`/api/v1/courses/batch/activate`, { ids });
+    // Backend expects array body of course_ids, not { ids }
+    const res = await httpPost<{ changed: number }>(`/api/v1/courses/batch/activate`, ids);
     return (res as any).changed ?? ids.length;
   }
   const mod = (await import('@/mock')).mockCourses as Course[];
@@ -623,7 +693,8 @@ export async function coursesBatchActivate(ids: string[]): Promise<number> {
 
 export async function coursesBatchDisable(ids: string[]): Promise<number> {
   if (!USE_MOCK) {
-    const res = await httpPost<{ changed: number }>(`/api/v1/courses/batch/disable`, { ids });
+    // Backend expects array body of course_ids, not { ids }
+    const res = await httpPost<{ changed: number }>(`/api/v1/courses/batch/disable`, ids);
     return (res as any).changed ?? ids.length;
   }
   const mod = (await import('@/mock')).mockCourses as Course[];
@@ -761,7 +832,7 @@ export async function fetchRewards(params?: { recruiter_id?: string; status?: st
   if (params?.page_size) sp.set('page_size', String(params.page_size));
   if (params?.start_date) sp.set('start_date', params.start_date);
   if (params?.end_date) sp.set('end_date', params.end_date);
-  const res = await httpGet<{ items: any[] }>(`${API_V1}/students/rewards?${sp.toString()}`);
+  const res = await httpGet<{ items: any[]; total: number; page: number; page_size: number; total_pages?: number }>(`/api/v1/rewards/students?${sp.toString()}`);
   return (res.items || []).map((r: any) => ({
     id: String(r.id),
     userId: String(r.recruiter_user_id || ''),
@@ -769,51 +840,82 @@ export async function fetchRewards(params?: { recruiter_id?: string; status?: st
     type: 'recruitment',
     amount: Number(r.reward_amount || 0),
     reason: r.application_reason || '',
-    status: r.reward_status === 3 ? 'approved' : r.reward_status === 4 ? 'rejected' : 'pending',
+    status: r.reward_status === 5 ? 'paid' : r.reward_status === 3 ? 'approved' : r.reward_status === 4 ? 'rejected' : 'pending',
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   } as Reward));
 }
-export async function createReward(partial: Omit<Reward, 'id' | 'createdAt' | 'updatedAt'>): Promise<Reward> {
-  const reward: Reward = {
+
+export async function createReward(partial: { student_enrollment_id: number | string; recruiter_user_id: number | string; total_fee: number; payment_type: 1 | 2; paid_amount: number; payment_date: string; reward_amount?: number; tags?: string; }): Promise<Reward> {
+  if (USE_MOCK) {
+    const { mockRewards } = await import('@/mock');
+    const reward: Reward = {
+      id: genId('reward'),
+      userId: String(partial.recruiter_user_id),
+      userName: '-',
+      type: 'recruitment',
+      amount: Number(partial.reward_amount || 0),
+      reason: '',
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    (mockRewards as Reward[]).push(reward);
+    return structuredClone(reward);
+  }
+  const created = await httpPost<any>(`/api/v1/rewards/students`, {
     ...partial,
-    id: genId('reward'),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    student_enrollment_id: Number(partial.student_enrollment_id),
+    recruiter_user_id: Number(partial.recruiter_user_id),
+  });
+  return {
+    id: String(created.id),
+    userId: String(created.recruiter_user_id || ''),
+    userName: created.recruiter_name || '-',
+    type: 'recruitment',
+    amount: Number(created.reward_amount || 0),
+    reason: created.application_reason || '',
+    status: created.reward_status === 5 ? 'paid' : created.reward_status === 3 ? 'approved' : created.reward_status === 4 ? 'rejected' : 'pending',
+    createdAt: created.created_at,
+    updatedAt: created.updated_at,
   } as Reward;
-  const mod = (await import('@/mock')).mockRewards as Reward[];
-  mod.push(reward);
-  return Promise.resolve(structuredClone(reward));
 }
 
-export async function updateRewardStatus(rewardId: string, status: Reward['status']): Promise<Reward | null> {
-  if (!USE_MOCK) {
-    // 后端奖励状态通过审批流程改变，这里调用更新接口作为占位
-    const updated = await httpPut<any>(`${API_V1}/students/rewards/${rewardId}`, { reward_status: status === 'approved' ? 3 : status === 'rejected' ? 4 : 2 });
-    return {
-      id: String(updated.id),
-      userId: String(updated.recruiter_user_id || ''),
-      userName: updated.recruiter_name || '-',
-      type: 'recruitment',
-      amount: Number(updated.reward_amount || 0),
-      reason: updated.application_reason || '',
-      status: updated.reward_status === 3 ? 'approved' : updated.reward_status === 4 ? 'rejected' : 'pending',
-      createdAt: updated.created_at,
-      updatedAt: updated.updated_at,
-    } as Reward;
+export async function applyReward(rewardId: string | number, application_month: string, application_reason: string) {
+  if (USE_MOCK) return { success: true } as any;
+  return httpPost(`/api/v1/rewards/students/${rewardId}/apply`, { application_month, application_reason });
+}
+
+export async function updateReward(rewardId: string, partial: Partial<Pick<Reward, 'amount' | 'reason'>>): Promise<Reward | null> {
+  if (USE_MOCK) {
+    const mod = (await import('@/mock')).mockRewards as Reward[];
+    const idx = mod.findIndex(r => r.id === rewardId);
+    if (idx >= 0) {
+      mod[idx] = { ...mod[idx], ...partial, updatedAt: new Date().toISOString() };
+      return structuredClone(mod[idx]);
+    }
+    return null;
   }
-  const mod = (await import('@/mock')).mockRewards as Reward[];
-  const idx = mod.findIndex(r => r.id === rewardId);
-  if (idx >= 0) {
-    mod[idx] = { ...mod[idx], status, updatedAt: new Date().toISOString() };
-    return Promise.resolve(structuredClone(mod[idx]));
-  }
-  return Promise.resolve(null);
+  const payload: any = {};
+  if (partial.amount != null) payload.reward_amount = Number(partial.amount);
+  if (partial.reason != null) payload.application_reason = String(partial.reason);
+  const updated = await httpPut<any>(`/api/v1/rewards/students/${rewardId}`, payload);
+  return {
+    id: String(updated.id),
+    userId: String(updated.recruiter_user_id || ''),
+    userName: updated.recruiter_name || '-',
+    type: 'recruitment',
+    amount: Number(updated.reward_amount || 0),
+    reason: updated.application_reason || '',
+    status: updated.reward_status === 5 ? 'paid' : updated.reward_status === 3 ? 'approved' : updated.reward_status === 4 ? 'rejected' : 'pending',
+    createdAt: updated.created_at,
+    updatedAt: updated.updated_at,
+  } as Reward;
 }
 
 export async function deleteReward(rewardId: string): Promise<boolean> {
   if (!USE_MOCK) {
-    await httpDelete(`${API_V1}/rewards/students/${rewardId}`);
+    await httpDelete(`/api/v1/rewards/students/${rewardId}`);
     return true;
   }
   const mod = (await import('@/mock')).mockRewards as Reward[];
@@ -822,33 +924,6 @@ export async function deleteReward(rewardId: string): Promise<boolean> {
   mod.length = 0;
   mod.push(...after);
   return Promise.resolve(after.length < before);
-}
-
-export async function updateReward(rewardId: string, partial: Partial<Reward>): Promise<Reward | null> {
-  if (!USE_MOCK) {
-    const payload: any = {};
-    if (partial.amount != null) payload.reward_amount = Number(partial.amount);
-    if (partial.reason != null) payload.application_reason = String(partial.reason);
-    const updated = await httpPut<any>(`${API_V1}/students/rewards/${rewardId}`, payload);
-    return {
-      id: String(updated.id),
-      userId: String(updated.recruiter_user_id || ''),
-      userName: updated.recruiter_name || '-',
-      type: 'recruitment',
-      amount: Number(updated.reward_amount || 0),
-      reason: updated.application_reason || '',
-      status: updated.reward_status === 3 ? 'approved' : updated.reward_status === 4 ? 'rejected' : 'pending',
-      createdAt: updated.created_at,
-      updatedAt: updated.updated_at,
-    } as Reward;
-  }
-  const mod = (await import('@/mock')).mockRewards as Reward[];
-  const idx = mod.findIndex(r => r.id === rewardId);
-  if (idx >= 0) {
-    mod[idx] = { ...mod[idx], ...partial, updatedAt: new Date().toISOString() };
-    return Promise.resolve(structuredClone(mod[idx]));
-  }
-  return Promise.resolve(null);
 }
 
 // Approvals - Rewards unified queue

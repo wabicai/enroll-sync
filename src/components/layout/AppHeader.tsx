@@ -12,17 +12,25 @@ import { Badge } from '@/components/ui/badge';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { useAppStore } from '@/store/useAppStore';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { logout as apiLogout } from '@/lib/api';
 
 export function AppHeader() {
-  const { user, theme, setTheme, logout } = useAppStore();
+  const { user, theme, setTheme, logout, clearTokens, setIsAuthenticated } = useAppStore();
 
   const handleThemeChange = (newTheme: 'light' | 'dark' | 'system') => {
     setTheme(newTheme);
   };
 
-  const handleLogout = () => {
-    logout();
-    window.location.href = '/login';
+  const handleLogout = async () => {
+    try {
+      const api = await import('@/lib/api');
+      await api.logout();
+    } finally {
+      clearTokens();
+      setIsAuthenticated(false);
+      logout();
+      window.location.href = '/login';
+    }
   };
 
   return (

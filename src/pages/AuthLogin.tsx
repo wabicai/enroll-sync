@@ -4,36 +4,45 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useAppStore } from '@/store/useAppStore';
-import { mockUsers } from '@/mock';
+import { loginAdmin } from '@/lib/api';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 export default function AuthLogin() {
-  const { setUser } = useAppStore();
-  const [email, setEmail] = useState('');
+  const { setUser, setTokens } = useAppStore();
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
-
-    // mock 登录：根据 email 匹配 mockUsers
-    const user = mockUsers.find(u => u.email.toLowerCase() === email.trim().toLowerCase());
-    setTimeout(() => {
+    try {
+      const res = await loginAdmin(username.trim(), password);
+      // store tokens and user
+      setTokens(res.token.access_token, res.token.refresh_token);
+      // Map backend CurrentUser to frontend User type lightly
+      const mappedUser = {
+        id: String(res.user.id),
+        name: res.user.real_name || res.user.username,
+        email: res.user.username,
+        phone: res.user.phone,
+        role: 'system_admin' as const,
+        status: 'active' as const,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      setUser(mappedUser as any);
+      const from = (location.state as any)?.from?.pathname || '/';
+      navigate(from, { replace: true });
+    } catch (err: any) {
+      setError(err?.message || '登录失败');
+    } finally {
       setLoading(false);
-      if (!user) {
-        setError('账号或密码错误');
-        return;
-      }
-      // 仅模拟密码校验
-      if (!password || password.length < 3) {
-        setError('账号或密码错误');
-        return;
-      }
-      setUser(user as any);
-      window.location.href = '/';
-    }, 600);
+    }
   };
 
   return (
@@ -45,8 +54,8 @@ export default function AuthLogin() {
         <CardContent>
           <form className="space-y-4" onSubmit={onSubmit}>
             <div className="space-y-2">
-              <Label htmlFor="email">邮箱</Label>
-              <Input id="email" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <Label htmlFor="username">用户名</Label>
+              <Input id="username" placeholder="gm / finance_exam / recruiter" value={username} onChange={(e) => setUsername(e.target.value)} required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">密码</Label>
@@ -57,7 +66,7 @@ export default function AuthLogin() {
               {loading ? '登录中...' : '登录'}
             </Button>
             <div className="text-sm text-center text-muted-foreground">
-              还没有账号？<a className="text-primary" href="/register">去注册</a>
+              没有账号？请联系管理员创建后台账号
             </div>
           </form>
         </CardContent>
@@ -65,4 +74,3 @@ export default function AuthLogin() {
     </div>
   );
 }
-
