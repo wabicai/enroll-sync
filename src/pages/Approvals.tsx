@@ -53,16 +53,16 @@ export default function Approvals() {
     setSearchParams(newParams);
   };
 
-  // 角色类型映射
+  // 角色类型映射（统一版本）
   const roleTypeMap: Record<number, string> = {
-    1: '全职',
-    2: '兼职', 
-    3: '自由',
-    4: '渠道',
+    1: '全职招生',
+    2: '兼职招生',
+    3: '自由招生',
+    4: '渠道招生',
     5: '团队负责人',
     6: '总经理',
     7: '考务组',
-    8: '财务',
+    8: '考务组',  // 财务和考务组统一为考务组
   };
 
   // 审批状态映射
@@ -80,26 +80,31 @@ export default function Approvals() {
     3: { label: '已拒绝', variant: 'destructive' },
   };
 
-  // 步骤名称映射
+  // 步骤名称映射（考务组统一，但保持功能区分）
   const stepNameMap: Record<string, string> = {
     'exam': '考务审核',
-    'finance': '财务审核',
+    'finance': '财务发放',
     'gm': '总经理审批'
   };
 
-  // 角色类型映射
-  const roleTypeMap: Record<number, string> = {
-    1: '全职招生',
-    2: '兼职招生',
-    3: '兼职负责人',
-    4: '渠道招生',
-    5: '兼职管理'
+  // 奖励申请特殊状态映射
+  const getRewardStatusText = (item: any) => {
+    if (item.instance.target_type === 'reward_application') {
+      // 奖励申请的完整流程状态显示
+      const currentStep = item.steps[item.instance.current_step_index];
+      if (currentStep) {
+        return stepNameMap[currentStep.step_key] || currentStep.step_key;
+      }
+    }
+    return getCurrentStepName(item);
   };
+
+
 
   // 获取当前步骤的人性化名称
   const getCurrentStepName = (item: any) => {
     if (!item.steps || item.steps.length === 0) return '-';
-    const currentStep = item.steps[item.current_step_index || 0];
+    const currentStep = item.steps[item.instance.current_step_index || 0];
     return currentStep ? stepNameMap[currentStep.step_key] || currentStep.step_key : '-';
   };
 
@@ -161,24 +166,24 @@ export default function Approvals() {
                     const userDetails = item.user_details;
                     const roleNames = roleTypeMap[userDetails?.requested_role_type] || '未知角色';
                     return (
-                      <TableRow key={item.instance_id}>
+                      <TableRow key={item.instance.id}>
                         <TableCell>{userDetails?.real_name || '未知'}</TableCell>
                         <TableCell>{userDetails?.phone || '未提供'}</TableCell>
                         <TableCell>{roleNames}</TableCell>
                         <TableCell>
-                          <Badge variant={item.status === 3 ? 'default' : item.status === 4 ? 'destructive' : 'secondary'}>
-                            {approvalStatusMap[item.status] || '未知'}
+                          <Badge variant={item.instance.status === 3 ? 'default' : item.instance.status === 4 ? 'destructive' : 'secondary'}>
+                            {approvalStatusMap[item.instance.status] || '未知'}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-center">
                           <Button size="sm" variant="outline" onClick={() => {
                             setSelectedApproval({
-                              inst: { 
-                                id: item.instance_id, 
-                                status: item.status, 
-                                target_type: 'user_registration', 
-                                target_id: item.target_id,
-                                current_step_index: item.current_step_index || 0
+                              inst: {
+                                id: item.instance.id,
+                                status: item.instance.status,
+                                target_type: 'user_registration',
+                                target_id: item.instance.target_id,
+                                current_step_index: item.instance.current_step_index || 0
                               },
                               steps: item.steps,
                               userDetails,
@@ -221,20 +226,20 @@ export default function Approvals() {
                   {roleUpgrades.map((item: any) => {
                     const roleDetails = item.role_upgrade_details;
                     return (
-                      <TableRow key={item.instance_id}>
-                        <TableCell>{item.instance_id}</TableCell>
+                      <TableRow key={item.instance.id}>
+                        <TableCell>{item.instance.id}</TableCell>
                         <TableCell>角色升级</TableCell>
-                        <TableCell>{roleDetails?.real_name || `用户${item.target_id}`}</TableCell>
-                        <TableCell>{item.current_step || '-'}</TableCell>
+                        <TableCell>{roleDetails?.real_name || `用户${item.instance.target_id}`}</TableCell>
+                        <TableCell>{getCurrentStepName(item)}</TableCell>
                         <TableCell className="text-center">
                           <Button size="sm" variant="outline" onClick={() => {
                             setSelectedApproval({
-                              inst: { 
-                                id: item.instance_id, 
-                                status: item.status, 
-                                target_type: 'user_role_upgrade', 
-                                target_id: item.target_id,
-                                current_step_index: item.current_step_index || 0
+                              inst: {
+                                id: item.instance.id,
+                                status: item.instance.status,
+                                target_type: 'user_role_upgrade',
+                                target_id: item.instance.target_id,
+                                current_step_index: item.instance.current_step_index || 0
                               },
                               steps: item.steps,
                               roleDetails,
@@ -278,27 +283,27 @@ export default function Approvals() {
                     const studentDetails = item.student_details;
                     const currentStepName = getCurrentStepName(item);
                     return (
-                      <TableRow key={item.instance_id}>
+                      <TableRow key={item.instance.id}>
                         <TableCell className="font-medium">
-                          {studentDetails?.student_name || `学员${item.target_id}`}
+                          {studentDetails?.student_name || `学员${item.instance.target_id}`}
                         </TableCell>
                         <TableCell>{studentDetails?.phone || '-'}</TableCell>
                         <TableCell>{studentDetails?.course_name || '-'}</TableCell>
                         <TableCell>{currentStepName}</TableCell>
                         <TableCell>
-                          <Badge variant={item.status === 3 ? 'default' : item.status === 4 ? 'destructive' : 'secondary'}>
-                            {approvalStatusMap[item.status] || '未知'}
+                          <Badge variant={item.instance.status === 3 ? 'default' : item.instance.status === 4 ? 'destructive' : 'secondary'}>
+                            {approvalStatusMap[item.instance.status] || '未知'}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-center">
                           <Button size="sm" variant="outline" onClick={() => {
                             setSelectedApproval({
                               inst: {
-                                id: item.instance_id,
-                                status: item.status,
+                                id: item.instance.id,
+                                status: item.instance.status,
                                 target_type: 'student_enrollment',
-                                target_id: item.target_id,
-                                current_step_index: item.current_step_index || 0
+                                target_id: item.instance.target_id,
+                                current_step_index: item.instance.current_step_index || 0
                               },
                               steps: item.steps,
                               studentDetails,
@@ -341,29 +346,28 @@ export default function Approvals() {
                 <TableBody>
                   {rewardApplications.map((item: any) => {
                     const rewardDetails = item.reward_details;
-                    const currentStepName = getCurrentStepName(item);
                     return (
-                      <TableRow key={item.instance_id}>
+                      <TableRow key={item.instance.id}>
                         <TableCell className="font-medium">
-                          {rewardDetails?.student_name || `奖励${item.target_id}`}
+                          {rewardDetails?.student_name || `奖励${item.instance.target_id}`}
                         </TableCell>
                         <TableCell>{rewardDetails?.application_month || '-'}</TableCell>
                         <TableCell>{rewardDetails?.reward_amount ? `¥${rewardDetails.reward_amount}` : '-'}</TableCell>
-                        <TableCell>{currentStepName}</TableCell>
+                        <TableCell>{getRewardStatusText(item)}</TableCell>
                         <TableCell>
-                          <Badge variant={item.status === 3 ? 'default' : item.status === 4 ? 'destructive' : 'secondary'}>
-                            {approvalStatusMap[item.status] || '未知'}
+                          <Badge variant={item.instance.status === 3 ? 'default' : item.instance.status === 4 ? 'destructive' : 'secondary'}>
+                            {approvalStatusMap[item.instance.status] || '未知'}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-center">
                           <Button size="sm" variant="outline" onClick={() => {
                             setSelectedApproval({
                               inst: {
-                                id: item.instance_id,
-                                status: item.status,
+                                id: item.instance.id,
+                                status: item.instance.status,
                                 target_type: 'reward_application',
-                                target_id: item.target_id,
-                                current_step_index: item.current_step_index || 0
+                                target_id: item.instance.target_id,
+                                current_step_index: item.instance.current_step_index || 0
                               },
                               steps: item.steps,
                               rewardDetails,

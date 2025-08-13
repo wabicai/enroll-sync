@@ -1069,47 +1069,35 @@ export async function decideApprovalStep(instanceId: number | string, stepKey: s
 }
 
 // ======================== 类型特定审批接口 ========================
-// 业务模块专用接口 - 提供更丰富的业务上下文信息
+// 使用统一审批接口，按类型过滤
 export async function fetchUserRegistrationApprovals(params?: { page?: number; page_size?: number }) {
-  const sp = new URLSearchParams();
-  if (params?.page) sp.set('page', String(params.page));
-  if (params?.page_size) sp.set('page_size', String(params.page_size));
-  return httpGet(`${API_V1}/approvals/user-registrations/pending${sp.toString() ? `?${sp.toString()}` : ''}`);
+  return fetchApprovalsPending({ ...params, target_type: 'user_registration' });
 }
 
 export async function fetchRewardApplicationApprovals(params?: { page?: number; page_size?: number }) {
-  const sp = new URLSearchParams();
-  if (params?.page) sp.set('page', String(params.page));
-  if (params?.page_size) sp.set('page_size', String(params.page_size));
-  return httpGet(`${API_V1}/approvals/rewards/pending${sp.toString() ? `?${sp.toString()}` : ''}`);
+  return fetchApprovalsPending({ ...params, target_type: 'reward_application' });
 }
 
 export async function fetchStudentEnrollmentApprovals(params?: { page?: number; page_size?: number }) {
-  const sp = new URLSearchParams();
-  if (params?.page) sp.set('page', String(params.page));
-  if (params?.page_size) sp.set('page_size', String(params.page_size));
-  return httpGet(`${API_V1}/approvals/student-enrollments/pending${sp.toString() ? `?${sp.toString()}` : ''}`);
+  return fetchApprovalsPending({ ...params, target_type: 'student_enrollment' });
 }
 
 export async function fetchRoleUpgradeApprovals(params?: { page?: number; page_size?: number }) {
-  const sp = new URLSearchParams();
-  if (params?.page) sp.set('page', String(params.page));
-  if (params?.page_size) sp.set('page_size', String(params.page_size));
-  return httpGet(`${API_V1}/approvals/role-upgrades/pending${sp.toString() ? `?${sp.toString()}` : ''}`);
+  return fetchApprovalsPending({ ...params, target_type: 'user_role_upgrade' });
 }
 
 export async function decideUserRegistrationApproval(instanceId: number | string, stepKey: string, approve: boolean, reason?: string) {
-  return httpPost(`${API_V1}/approvals/user-registrations/${instanceId}/steps/${stepKey}/decision`, { approve, reason });
+  return decideApprovalStep(instanceId, stepKey, approve, reason);
 }
 
 export async function decideRewardApplicationApproval(instanceId: number | string, stepKey: string, approve: boolean, reason?: string) {
-  return httpPost(`${API_V1}/approvals/rewards/${instanceId}/steps/${stepKey}/decision`, { approve, reason });
+  return decideApprovalStep(instanceId, stepKey, approve, reason);
 }
 
 export async function decideStudentEnrollmentApproval(instanceId: number | string, stepKey: string, approve: boolean, reason?: string) {
-  return httpPost(`${API_V1}/approvals/student-enrollments/${instanceId}/steps/${stepKey}/decision`, { approve, reason });
+  return decideApprovalStep(instanceId, stepKey, approve, reason);
 }
 
 export async function decideRoleUpgradeApproval(instanceId: number | string, stepKey: string, approve: boolean, reason?: string) {
-  return httpPost(`${API_V1}/approvals/role-upgrades/${instanceId}/steps/${stepKey}/decision`, { approve, reason });
+  return decideApprovalStep(instanceId, stepKey, approve, reason);
 }
