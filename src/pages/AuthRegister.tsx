@@ -22,46 +22,76 @@ export default function AuthRegister() {
     password: '',
     name: '',
     id_card: '',
+    phone: '',
     identity_type: '',
     invite_code: '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
-    // 简单字段校验（与后台规范一致的最小子集）
-    if (!form.email || !form.password || !form.name || !form.id_card || !form.identity_type) {
-      setError('请完整填写必填信息');
-      setLoading(false);
-      return;
-    }
-    if (form.identity_type === 'part_time' && !form.invite_code) {
-      setError('兼职招生需填写负责人邀请码');
-      setLoading(false);
-      return;
-    }
+    try {
+      // 简单字段校验（与后台规范一致的最小子集）
+      if (!form.email || !form.password || !form.name || !form.id_card || !form.identity_type) {
+        setError('请完整填写必填信息');
+        setLoading(false);
+        return;
+      }
+      if (form.identity_type === 'part_time' && !form.invite_code) {
+        setError('兼职招生需填写负责人邀请码');
+        setLoading(false);
+        return;
+      }
 
-    // mock 注册：直接创建一个待审核用户并跳转到登录
-    setTimeout(() => {
-      const newUser = {
-        id: String(Date.now()),
-        name: form.name,
-        email: form.email.toLowerCase(),
-        phone: '',
-        role: 'system_admin' as const,
-        status: 'pending' as const,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        identity: (form.identity_type as any),
+      // 映射前端身份类型到后端枚举值
+      const roleTypeMap = {
+        'full_time': 1,      // 全职
+        'part_time': 2,      // 兼职
+        'freelance': 3,      // 自由
+        'channel': 4,        // 渠道
+        'part_time_lead': 5, // 团队负责人
       };
-      (mockUsers as any).push(newUser);
-      setLoading(false);
+
+      // 调用真实的注册API
+      const registerData = {
+        username: form.email, // 使用邮箱作为用户名
+        password: form.password,
+        confirm_password: form.password,
+        real_name: form.name,
+        id_card: form.id_card,
+        phone: form.phone || '',
+        gender: 0, // 默认未知
+        role_type: roleTypeMap[form.identity_type as keyof typeof roleTypeMap] || 1,
+        invite_code: form.invite_code || null,
+        tags: `身份：${identityOptions.find(opt => opt.value === form.identity_type)?.label || ''}`,
+      };
+
+      const response = await fetch('https://chuangningpeixun.com/api/v1/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(registerData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: '注册失败' }));
+        throw new Error(errorData.message || `HTTP ${response.status}`);
+      }
+
+      const result = await response.json();
+      alert(`注册成功！用户ID: ${result.user_id}，状态: ${result.need_audit ? '待审核' : '已激活'}，请返回登录页面`);
       window.location.href = '/login';
-    }, 800);
+      
+    } catch (error: any) {
+      setError(error.message || '注册失败，请重试');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -87,6 +117,10 @@ export default function AuthRegister() {
             <div className="space-y-2">
               <Label htmlFor="idcard">身份证号</Label>
               <Input id="idcard" placeholder="18位身份证号" value={form.id_card} onChange={(e) => setForm({ ...form, id_card: e.target.value })} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">手机号</Label>
+              <Input id="phone" placeholder="请输入手机号" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} required />
             </div>
             <div className="space-y-2">
               <Label>选择身份</Label>

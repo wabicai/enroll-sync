@@ -1,0 +1,1261 @@
+### 🚀 培训公司招生分销管理系统 - 专业API测试套件
+
+@baseUrl = http://localhost:8000/api/v1
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyMiIsInVzZXJuYW1lIjoiZnVsbHRpbWVfMSIsImV4cCI6MTc1NDQ5ODg4Mn0.Zjy8kGdqhvKTeKgeA4KtffuXfY0Tgj2Hm7uFhgOnYyM
+
+### 📊 权限等级（从高到低）：
+### 6️⃣ 总经理 (admin_test) - 全部权限
+### 8️⃣ 财务 (finance_test) - 奖励审核、发放
+### 7️⃣ 考务组 (exam_test) - 学员、考试管理  
+### 5️⃣ 团队负责人 (leader_test) - 团队管理、招生
+### 1️⃣ 全职招生员 (fulltime_1) - 基础招生
+### 2️⃣ 兼职招生员 (parttime_1) - 基础招生
+### 3️⃣ 自由招生员 (freelancer_1) - 基础招生
+### 4️⃣ 渠道招生员 (channel_1) - 基础招生
+###
+### 🔐 所有账号密码：123456
+
+### ========== 🧪 测试流程说明 ==========
+### 
+### 1️⃣ 选择角色场景（A-H）
+### 2️⃣ 执行对应的登录接口
+### 3️⃣ 复制返回的 access_token 替换上面的 @token
+### 4️⃣ 按顺序执行该角色的业务流程
+### 5️⃣ 观察权限控制是否正确
+
+### ========================================
+### 🎯 场景A：总经理完整业务流程
+### ========================================
+
+### A1. 总经理登录
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin_test",
+  "password": "123456"
+}
+
+### A2. 获取用户信息
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{token}}
+
+### A3. 查看系统统计（管理员权限）
+GET {{baseUrl}}/dashboard/overview
+Authorization: Bearer {{token}}
+
+### A4. 查看所有团队成员
+GET {{baseUrl}}/teams/my-team?page=1&page_size=50
+Authorization: Bearer {{token}}
+
+### A5. 生成邀请码（管理员权限）
+POST {{baseUrl}}/teams/invite-codes
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "role_type": 1,
+  "count": 3,
+  "expiry_days": 30,
+  "tags": "总经理生成的全职招生员",
+  "base_salary": 5000.00
+}
+
+### A6. 查看所有学员（管理员可查看全部）
+GET {{baseUrl}}/students/exam-students?page=1&page_size=20
+Authorization: Bearer {{token}}
+
+### A7. 查看所有考试安排
+GET {{baseUrl}}/exams/schedules?page=1&page_size=20
+Authorization: Bearer {{token}}
+
+### A8. 查看奖励记录列表（管理员权限）
+GET {{baseUrl}}/rewards/students?reward_status=2&page=1&page_size=20
+Authorization: Bearer {{token}}
+
+### A9. 查看用户管理列表（管理员权限）
+GET {{baseUrl}}/users?page=1&page_size=20
+Authorization: Bearer {{token}}
+
+### A10. 查看待审批列表（管理员权限）
+GET {{baseUrl}}/audits/pending?page=1&page_size=20
+Authorization: Bearer {{token}}
+
+### A11. 查看通知列表
+GET {{baseUrl}}/notifications?page=1&page_size=20
+Authorization: Bearer {{token}}
+
+### A12. 查看课程管理
+GET {{baseUrl}}/courses?page=1&page_size=20
+Authorization: Bearer {{token}}
+
+### ========================================
+### 🎯 场景B：财务人员业务流程
+### ========================================
+
+### B1. 财务人员登录
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "username": "finance_test",
+  "password": "123456"
+}
+
+### B2. 查看待审核奖励记录
+GET {{baseUrl}}/rewards/students?reward_status=2&page=1&page_size=20
+Authorization: Bearer {{token}}
+
+### B3. 审核奖励（通过）
+POST {{baseUrl}}/rewards/students/1/audit
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "approve": true,
+  "audit_reason": "财务审核通过，符合奖励标准"
+}
+
+### B4. 标记奖励已发放
+POST {{baseUrl}}/rewards/students/1/pay
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "payment_method": "bank_transfer",
+  "payment_notes": "2024年12月奖励发放",
+  "payment_amount": 500.00
+}
+
+### B5. 批量发放奖励
+POST {{baseUrl}}/rewards/batch/pay
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "reward_ids": [1, 2, 3],
+  "payment_method": "bank_transfer",
+  "payment_notes": "2024年12月批量奖励发放"
+}
+
+### ========================================
+### 🎯 场景C：考务组业务流程
+### ========================================
+
+### C1. 考务组登录
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "username": "exam_test",
+  "password": "123456"
+}
+
+### C2. 创建学员档案
+POST {{baseUrl}}/students/exam-students
+Content-Type: application/json
+Authorization: Bearer {{token}}
+#  需要更改名称不能重复
+{
+  "name": "张四",
+  "phone": "13900002001",
+  "id_card": "110101199002011234",
+  "gender": 1,
+  "education": "高中",
+  "major": "护工专业",
+  "work_unit": "某医院",
+  "job_position": "护工",
+  "work_years": 2,
+  "employment_intention": "医院护工",
+  "notes": "考务组创建的学员档案"
+}
+
+### C3. 查看学员列表
+GET {{baseUrl}}/students/exam-students?keyword=张三&page=1&page_size=20
+Authorization: Bearer {{token}}
+
+### C4. 创建考试安排
+### 📋 枚举值说明：
+### course_type: theoretical(理论) | practical(实践) | comprehensive(综合)
+### course_level: beginner(初级) | intermediate(中级) | advanced(高级) | expert(专家级)
+### exam_mode: online(在线) | offline(线下) | hybrid(混合)
+POST {{baseUrl}}/exams/schedules
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "course_name": "护工技能培训",
+  "course_type": "comprehensive",
+  "course_level": "beginner",
+  "course_batch": "2024年12月批次",
+  "exam_date": "2024-12-25",
+  "exam_start_time": "09:00:00",
+  "exam_end_time": "11:00:00",
+  "exam_location": "培训中心A座",
+  "exam_mode": "offline",
+  "total_seats": 50,
+  "notes": "护工技能考试"
+}
+
+### C5. 查看考试安排列表
+GET {{baseUrl}}/exams/schedules?page=1&page_size=20
+Authorization: Bearer {{token}}
+
+### C6. 为学员创建课程报考记录
+POST {{baseUrl}}/students/enrollments
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "student_id": 1,
+  "course_name": "护工技能培训",
+  "course_level": "初级",
+  "course_batch": "2024年12月批次",
+  "registration_date": "2024-12-15",
+  "is_veteran_conversion": false,
+  "materials_complete": true,
+  "follow_up": true
+}
+
+### ========================================
+### 🎯 场景D：团队负责人业务流程
+### ========================================
+
+### D1. 团队负责人登录
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "username": "leader_test",
+  "password": "123456"
+}
+
+### D2. 查看我的团队成员
+GET {{baseUrl}}/teams/my-team?page=1&page_size=20
+Authorization: Bearer {{token}}
+
+### D3. 生成招生员邀请码
+POST {{baseUrl}}/teams/invite-codes
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "role_type": 1,
+  "count": 5,
+  "expiry_days": 30,
+  "tags": "团队负责人招募",
+  "base_salary": 3000.00,
+  "kpi_target": {
+    "monthly_students": 10,
+    "monthly_revenue": 20000
+  }
+}
+
+### D4. 查看邀请码使用情况
+GET {{baseUrl}}/teams/invite-codes?page=1&page_size=20
+Authorization: Bearer {{token}}
+
+### D5. 查看团队业绩
+GET {{baseUrl}}/teams/performance?period=current_month
+Authorization: Bearer {{token}}
+
+### D6. 创建奖励学员记录（招生成果）
+POST {{baseUrl}}/students/rewards
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "李四",
+  "phone": "13900001002",
+  "course_type": "护工培训",
+  "payment_amount": 2000.00,
+  "payment_date": "2024-12-15",
+  "payment_method": "微信支付",
+  "notes": "团队负责人推荐学员"
+}
+
+### ========================================
+### 🎯 场景E：全职招生员业务流程
+### ========================================
+
+### E1. 全职招生员登录
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "username": "fulltime_1",
+  "password": "123456"
+}
+
+### E2. 查看个人信息和角色
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{token}}
+
+### ========== 角色切换测试（前端本地状态管理）==========
+### 📋 说明：角色切换已改为前端本地状态管理，无需后端接口
+### 前端在API请求时携带 current_role 参数指定使用的身份
+
+### E2.1 示例：以招生员身份创建学员
+POST {{baseUrl}}/students/exam-students
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "角色测试学员",
+  "phone": "13900001111",
+  "id_card": "110101199001011111",
+  "gender": 1,
+  "education": "大专",
+  "current_role": {
+    "role_type": 1,
+    "role_id": 1
+  }
+}
+
+### E2.2 示例：以考务组身份查看学员列表
+GET {{baseUrl}}/students/exam-students?page=1&page_size=20&role_type=7
+Authorization: Bearer {{token}}
+
+### E2.3 示例：以财务身份查看奖励记录
+GET {{baseUrl}}/rewards/students?reward_status=2&page=1&page_size=20&role_type=8
+Authorization: Bearer {{token}}
+
+### E2.4 示例：以管理员身份查看审核列表
+GET {{baseUrl}}/audits/pending?page=1&page_size=20&role_type=6
+Authorization: Bearer {{token}}
+
+### E3. 创建奖励学员记录（招生业绩）
+### 📋 必需字段说明：
+### student_enrollment_id: 关联学员报考记录ID
+### recruiter_user_id: 招生员用户ID
+### total_fee: 学费总额
+### payment_type: 付费方式（1=全款，2=部分付费）
+### paid_amount: 已缴费金额
+### payment_date: 缴费日期
+### reward_amount: 奖励金额
+POST {{baseUrl}}/students/rewards
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "student_enrollment_id": 1,
+  "recruiter_user_id": 1,
+  "total_fee": 2000.00,
+  "payment_type": 1,
+  "paid_amount": 2000.00,
+  "payment_date": "2024-12-15",
+  "reward_amount": 200.00,
+  "tags": "全职招生员推荐学员"
+}
+
+### E4. 查看我的招生记录
+GET {{baseUrl}}/students/rewards?created_by=me&page=1&page_size=20
+Authorization: Bearer {{token}}
+
+### E5. 申请奖励（对具体奖励记录）
+POST {{baseUrl}}/rewards/students/1/apply
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "application_month": "2024-12",
+  "application_reason": "完成本月招生目标"
+}
+
+### E6. 查看我的奖励记录状态
+GET {{baseUrl}}/rewards/students?page=1&page_size=20
+Authorization: Bearer {{token}}
+
+### ========================================
+### 🎯 场景F：兼职招生员业务流程
+### ========================================
+
+### F1. 兼职招生员登录
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "username": "parttime_1",
+  "password": "123456"
+}
+
+### F2. 查看可报考的课程
+GET {{baseUrl}}/exams/courses
+Authorization: Bearer {{token}}
+
+### F3. 创建招生记录
+POST {{baseUrl}}/students/rewards
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "赵六",
+  "phone": "13900001004",
+  "course_type": "护工培训",
+  "payment_amount": 1500.00,
+  "payment_date": "2024-12-15",
+  "payment_method": "现金",
+  "notes": "兼职招生员推荐学员"
+}
+
+### F4. 查看个人业绩统计
+GET {{baseUrl}}/rewards/my-statistics
+Authorization: Bearer {{token}}
+
+### ========================================
+### 🎯 场景G：权限测试场景
+### ========================================
+
+### G1. 测试权限边界 - 招生员尝试访问管理员功能（应该失败）
+GET {{baseUrl}}/dashboard/statistics
+Authorization: Bearer {{token}}
+
+### G2. 测试权限边界 - 招生员尝试审核奖励（应该失败）
+PUT {{baseUrl}}/rewards/applications/1/audit
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "action": "approve",
+  "audit_notes": "无权限操作"
+}
+
+### G3. 测试权限边界 - 招生员尝试创建考试安排（应该失败）
+POST {{baseUrl}}/exams/schedules
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "course_name": "测试课程",
+  "exam_date": "2024-12-25"
+}
+
+### ========================================
+### 🎯 场景H：角色切换测试（多角色用户）
+### ========================================
+
+### H1. 多角色用户登录（如 leader_test 可能有多个角色）
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "username": "leader_test",
+  "password": "123456"
+}
+
+### H2. 查看用户所有角色
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{token}}
+
+### H3. 使用特定角色身份创建学员（在请求中指定角色）
+POST {{baseUrl}}/students/rewards
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "角色测试学员",
+  "phone": "13900001005",
+  "course_type": "护工培训",
+  "payment_amount": 2000.00,
+  "payment_date": "2024-12-15",
+  "payment_method": "银行转账",
+  "notes": "角色切换测试",
+  "current_role": {
+    "role_type": 5,
+    "role_id": 1
+  }
+}
+
+### H4. 使用不同角色身份查询数据
+GET {{baseUrl}}/students/rewards?role_type=1&role_id=1&page=1&page_size=20
+Authorization: Bearer {{token}}
+
+### ========================================
+### 🔍 调试和监控接口
+### ========================================
+
+### 健康检查
+GET {{baseUrl}}/health
+Authorization: Bearer {{token}}
+
+### 获取系统信息
+GET {{baseUrl}}/system/info
+Authorization: Bearer {{token}}
+
+### 查看API文档
+# 浏览器访问: http://localhost:8000/docs
+
+### ========================================
+### 🚀 高级测试场景
+### ========================================
+
+### I1. 批量操作测试 - 批量创建学员
+POST {{baseUrl}}/students/batch-import
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "students": [
+    {
+      "name": "批量学员1",
+      "phone": "13900002001",
+      "id_card": "110101199002011234",
+      "gender": 1,
+      "education": "大专",
+      "course_type": "护工培训"
+    },
+    {
+      "name": "批量学员2",
+      "phone": "13900002002",
+      "id_card": "110101199002021234",
+      "gender": 2,
+      "education": "本科",
+      "course_type": "护工培训"
+    }
+  ]
+}
+
+### I2. 数据导出测试
+GET {{baseUrl}}/students/export?format=excel&start_date=2024-12-01&end_date=2024-12-31
+Authorization: Bearer {{token}}
+
+### I3. 统计报表测试
+GET {{baseUrl}}/reports/recruitment-summary?period=2024-12
+Authorization: Bearer {{token}}
+
+### I4. 搜索功能测试
+GET {{baseUrl}}/students/exam-students?keyword=张&gender=1&education=高中&page=1&page_size=10
+Authorization: Bearer {{token}}
+
+### I5. 分页压力测试
+GET {{baseUrl}}/students/exam-students?page=1&page_size=100
+Authorization: Bearer {{token}}
+
+### ========================================
+### 🔄 业务流程完整测试
+### ========================================
+
+### J1. 完整招生流程 - 第一步：招生员创建学员
+POST {{baseUrl}}/students/rewards
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "完整流程测试学员",
+  "phone": "13900003001",
+  "course_type": "护工培训",
+  "payment_amount": 2000.00,
+  "payment_date": "2024-12-15",
+  "payment_method": "微信支付",
+  "notes": "完整业务流程测试"
+}
+
+### J2. 完整招生流程 - 第二步：申请奖励
+POST {{baseUrl}}/rewards/applications
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "student_ids": [1],
+  "application_month": "2024-12",
+  "application_reason": "完整流程测试奖励申请"
+}
+
+### J3. 完整招生流程 - 第三步：财务审核（需要切换到财务账号）
+# 先登录财务账号，然后执行：
+PUT {{baseUrl}}/rewards/applications/1/audit
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "action": "approve",
+  "audit_notes": "完整流程测试 - 财务审核通过"
+}
+
+### J4. 完整招生流程 - 第四步：发放奖励
+POST {{baseUrl}}/rewards/payments
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "application_id": 1,
+  "payment_method": "bank_transfer",
+  "payment_notes": "完整流程测试 - 奖励发放"
+}
+
+### ========================================
+### 🛡️ 安全性测试
+### ========================================
+
+### K1. 无效Token测试
+GET {{baseUrl}}/auth/me
+Authorization: Bearer invalid_token_here
+
+### K2. 过期Token测试（使用一个已过期的token）
+GET {{baseUrl}}/auth/me
+Authorization: Bearer expired_token_here
+
+### K3. SQL注入防护测试
+GET {{baseUrl}}/students/exam-students?keyword='; DROP TABLE students; --
+Authorization: Bearer {{token}}
+
+### K4. XSS防护测试
+POST {{baseUrl}}/students/exam-students
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "<script>alert('xss')</script>",
+  "phone": "13900004001",
+  "id_card": "110101199004011234",
+  "gender": 1,
+  "education": "高中",
+  "notes": "<img src=x onerror=alert('xss')>"
+}
+
+### ========================================
+### 📊 性能测试
+### ========================================
+
+### L1. 大数据量查询测试
+GET {{baseUrl}}/students/exam-students?page=1&page_size=1000
+Authorization: Bearer {{token}}
+
+### L2. 复杂查询测试
+GET {{baseUrl}}/students/exam-students?keyword=测试&gender=1&education=高中&start_date=2024-01-01&end_date=2024-12-31&page=1&page_size=50
+Authorization: Bearer {{token}}
+
+### L3. 并发请求测试（需要工具支持）
+# 同时发送多个相同请求测试系统并发处理能力
+
+### ========================================
+### 🔧 开发调试接口
+### ========================================
+
+### M1. 清理测试数据
+DELETE {{baseUrl}}/dev/cleanup-test-data
+Authorization: Bearer {{token}}
+
+### M2. 重置数据库（开发环境）
+POST {{baseUrl}}/dev/reset-database
+Authorization: Bearer {{token}}
+
+### M3. 生成测试数据
+POST {{baseUrl}}/dev/generate-test-data
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "students_count": 100,
+  "exams_count": 10,
+  "applications_count": 50
+}
+
+### ========================================
+### 📝 测试检查清单
+### ========================================
+
+### ✅ 基础功能测试
+### [ ] 所有角色都能正常登录
+### [ ] 权限控制正确（无越权访问）
+### [ ] CRUD操作正常
+### [ ] 分页查询正常
+### [ ] 搜索功能正常
+
+### ✅ 业务流程测试
+### [ ] 招生员 -> 申请奖励 -> 财务审核 -> 发放奖励
+### [ ] 考务组 -> 创建学员 -> 安排考试 -> 报考管理
+### [ ] 团队负责人 -> 生成邀请码 -> 管理团队 -> 查看业绩
+
+### ✅ 安全性测试
+### [ ] Token验证正常
+### [ ] SQL注入防护有效
+### [ ] XSS防护有效
+### [ ] 权限边界清晰
+
+### ✅ 性能测试
+### [ ] 大数据量查询响应时间 < 3秒
+### [ ] 并发请求处理正常
+### [ ] 内存使用合理
+
+### ========================================
+### 🎯 快速测试命令
+### ========================================
+
+### 一键测试所有登录
+# 依次执行 A1, B1, C1, D1, E1, F1
+
+### 一键测试权限边界
+# 使用招生员token执行 G1, G2, G3
+
+### 一键测试完整业务流程
+# 依次执行 J1, J2, J3, J4
+
+### 一键测试安全性
+# 依次执行 K1, K2, K3, K4
+
+### ========================================
+### 🔧 遗漏接口补充测试
+### ========================================
+
+### ========== 用户管理模块 (/users) ==========
+
+### N1. 获取用户列表（管理员权限）
+GET {{baseUrl}}/users?keyword=test&status=1&role_type=1&page=1&page_size=20
+Authorization: Bearer {{token}}
+
+### N2. 获取用户详情
+GET {{baseUrl}}/users/1
+Authorization: Bearer {{token}}
+
+### N3. 更新用户状态
+PUT {{baseUrl}}/users/1/status
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "status": 1,
+  "reason": "管理员激活用户"
+}
+
+### N4. 删除用户
+DELETE {{baseUrl}}/users/1
+Authorization: Bearer {{token}}
+
+### ========== 审核管理模块 (/audits) ==========
+
+### O1. 获取待审批列表
+GET {{baseUrl}}/audits/pending?page=1&page_size=20
+Authorization: Bearer {{token}}
+
+### O2. 审核用户注册申请
+PUT {{baseUrl}}/audits/user-registration/1
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "action": "approve",
+  "audit_notes": "用户资料完整，批准注册"
+}
+
+### O3. 审核奖励申请
+PUT {{baseUrl}}/audits/reward-application/1
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "action": "approve",
+  "audit_notes": "奖励申请符合标准"
+}
+
+### ========== 课程管理模块 (/courses) ==========
+
+### P1. 创建课程
+POST {{baseUrl}}/courses
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "course_name": "高级护工培训",
+  "course_code": "HG-ADV-001",
+  "course_level": "高级",
+  "description": "高级护工技能培训课程",
+  "theory_hours": 40,
+  "practice_hours": 60,
+  "exam_fee": 300.00,
+  "certificate_fee": 50.00,
+  "theory_exam_ratio": 40,
+  "practice_exam_ratio": 60
+}
+
+### P2. 获取课程列表
+GET {{baseUrl}}/courses?keyword=护工&course_level=高级&page=1&page_size=20
+Authorization: Bearer {{token}}
+
+### P3. 获取课程详情
+GET {{baseUrl}}/courses/1
+Authorization: Bearer {{token}}
+
+### P4. 更新课程
+PUT {{baseUrl}}/courses/1
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "course_name": "高级护工培训（更新版）",
+  "description": "更新后的课程描述",
+  "exam_fee": 350.00
+}
+
+### P5. 获取课程名称列表
+GET {{baseUrl}}/courses/names/list?active_only=true
+Authorization: Bearer {{token}}
+
+### P6. 删除课程
+DELETE {{baseUrl}}/courses/1
+Authorization: Bearer {{token}}
+
+### ========== 考试安排模块 (/schedules) ==========
+
+### Q1. 创建考试安排
+POST {{baseUrl}}/schedules
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "course_id": 1,
+  "exam_date": "2024-12-30",
+  "exam_time": "09:00",
+  "exam_location": "培训中心B座",
+  "total_seats": 80,
+  "registration_deadline": "2024-12-25",
+  "notes": "年末考试安排"
+}
+
+### Q2. 获取考试安排列表
+GET {{baseUrl}}/schedules?keyword=护工&course_name=护工培训&page=1&page_size=20
+Authorization: Bearer {{token}}
+
+### Q3. 获取考试安排详情
+GET {{baseUrl}}/schedules/1
+Authorization: Bearer {{token}}
+
+### Q4. 更新考试安排
+PUT {{baseUrl}}/schedules/1
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "total_seats": 100,
+  "exam_location": "培训中心C座",
+  "notes": "考位增加到100个"
+}
+
+### Q5. 更新考位数量
+PUT {{baseUrl}}/schedules/1/seats
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "total_seats": 120,
+  "operation_reason": "需求增加，扩大考位"
+}
+
+### Q6. 占用考位
+POST {{baseUrl}}/schedules/1/occupy-seat
+Authorization: Bearer {{token}}
+
+### Q7. 释放考位
+POST {{baseUrl}}/schedules/1/release-seat
+Authorization: Bearer {{token}}
+
+### Q8. 更改考试状态
+PUT {{baseUrl}}/schedules/1/status
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "new_status": "published",
+  "change_reason": "考试安排确认，开放报名"
+}
+
+### Q9. 获取考试日历
+GET {{baseUrl}}/schedules/calendar?year=2024&month=12
+Authorization: Bearer {{token}}
+
+### Q10. 获取考试统计
+GET {{baseUrl}}/schedules/statistics
+Authorization: Bearer {{token}}
+
+### ========== 通知管理模块 (/notifications) ==========
+
+### R1. 获取通知列表
+GET {{baseUrl}}/notifications?page=1&page_size=20&is_read=false
+Authorization: Bearer {{token}}
+
+### R2. 获取未读消息数量
+GET {{baseUrl}}/notifications/unread-count
+Authorization: Bearer {{token}}
+
+### R3. 创建通知（管理员权限）
+POST {{baseUrl}}/notifications
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "系统维护通知",
+  "content": "系统将于今晚22:00-24:00进行维护",
+  "category": "system",
+  "type": "maintenance",
+  "target_users": [1, 2, 3],
+  "priority": "high"
+}
+
+### R4. 标记消息已读
+PUT {{baseUrl}}/notifications/1/read
+Authorization: Bearer {{token}}
+
+### R5. 批量标记已读
+PUT {{baseUrl}}/notifications/mark-read
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "notification_ids": [1, 2, 3]
+}
+
+### R6. 标记所有消息已读
+PUT {{baseUrl}}/notifications/mark-read
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{}
+
+### R7. 删除通知
+DELETE {{baseUrl}}/notifications/1
+Authorization: Bearer {{token}}
+
+### R8. 获取通知统计
+GET {{baseUrl}}/notifications/stats
+Authorization: Bearer {{token}}
+
+### R9. 批量创建通知（管理员权限）
+POST {{baseUrl}}/notifications/batch
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "批量通知测试",
+  "content": "这是一条批量发送的通知",
+  "category": "announcement",
+  "target_role_types": [1, 2, 3, 4],
+  "priority": "normal"
+}
+
+### ========== 奖励管理完整流程 (/rewards) ==========
+###
+### 📋 奖励状态枚举值：
+### 1 = 可申请 (AVAILABLE)
+### 2 = 申请中 (APPLYING)
+### 3 = 已批准 (APPROVED)
+### 4 = 已拒绝 (REJECTED)
+### 5 = 已发放 (ISSUED)
+
+### S1. 查看我的奖励记录
+GET {{baseUrl}}/rewards/students?created_by=me&page=1&page_size=20
+Authorization: Bearer {{token}}
+
+### S2. 申请奖励（对具体奖励记录）
+POST {{baseUrl}}/rewards/students/1/apply
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "application_month": "2024-12",
+  "application_reason": "完成月度招生目标"
+}
+
+### S3. 查看我的奖励记录
+GET {{baseUrl}}/rewards/students?page=1&page_size=20
+Authorization: Bearer {{token}}
+
+### S4. 查看所有奖励记录（财务权限）
+GET {{baseUrl}}/rewards/students?reward_status=2&page=1&page_size=20
+Authorization: Bearer {{token}}
+
+### S5. 审核奖励（财务权限）
+POST {{baseUrl}}/rewards/students/1/audit
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "approve": true,
+  "audit_reason": "财务审核通过"
+}
+
+### S6. 发放奖励（财务权限）
+POST {{baseUrl}}/rewards/students/1/pay
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "payment_method": "bank_transfer",
+  "payment_notes": "奖励发放",
+  "payment_amount": 500.00
+}
+
+### S7. 查看已发放记录
+GET {{baseUrl}}/rewards/students?reward_status=5&page=1&page_size=20
+Authorization: Bearer {{token}}
+
+### S8. 批量审核奖励（财务权限）
+POST {{baseUrl}}/rewards/batch/audit
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "reward_ids": [1, 2, 3],
+  "approve": true,
+  "audit_reason": "批量审核通过"
+}
+
+### S9. 批量发放奖励（财务权限）
+POST {{baseUrl}}/rewards/batch/pay
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "reward_ids": [1, 2, 3],
+  "payment_method": "bank_transfer",
+  "payment_notes": "批量发放奖励"
+}
+
+### S10. 获取奖励统计
+GET {{baseUrl}}/rewards/statistics?period=current_month
+Authorization: Bearer {{token}}
+
+### S11. 获取招生员统计
+GET {{baseUrl}}/rewards/recruiter-statistics?recruiter_id=1&period=current_month
+Authorization: Bearer {{token}}
+
+### S12. 导出奖励数据（财务权限）
+POST {{baseUrl}}/rewards/export
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "export_type": "applications",
+  "format": "excel",
+  "date_range": {
+    "start_date": "2024-12-01",
+    "end_date": "2024-12-31"
+  }
+}
+
+### S13. 创建删除申请
+POST {{baseUrl}}/rewards/delete-requests
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "student_id": 1,
+  "delete_reason": "学员信息录入错误"
+}
+
+### S14. 审核删除申请（财务权限）
+PUT {{baseUrl}}/rewards/delete-requests/1/audit
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "action": "approve",
+  "audit_notes": "确认信息错误，同意删除"
+}
+
+### ========== 数据看板完整功能 (/dashboard) ==========
+
+### T1. 获取数据看板总览
+GET {{baseUrl}}/dashboard/overview?date_range=month&include_inactive=false
+Authorization: Bearer {{token}}
+
+### T2. 获取人员详细统计
+GET {{baseUrl}}/dashboard/personnel-details?role_type=1&period=current_month
+Authorization: Bearer {{token}}
+
+### T3. 获取趋势分析
+GET {{baseUrl}}/dashboard/trends?metric=recruitment&period=last_6_months
+Authorization: Bearer {{token}}
+
+### T4. 获取排行榜数据
+GET {{baseUrl}}/dashboard/rankings?type=recruiter&period=current_month&limit=10
+Authorization: Bearer {{token}}
+
+### T5. 获取对比分析
+GET {{baseUrl}}/dashboard/comparison?compare_type=month_over_month&metric=revenue
+Authorization: Bearer {{token}}
+
+### T6. 获取实时数据
+GET {{baseUrl}}/dashboard/realtime
+Authorization: Bearer {{token}}
+
+### T7. 获取预警信息
+GET {{baseUrl}}/dashboard/alerts?level=warning
+Authorization: Bearer {{token}}
+
+### T8. 生成报表
+POST {{baseUrl}}/dashboard/reports/generate
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "report_type": "recruitment_summary",
+  "format": "excel",
+  "date_range": {
+    "start_date": "2024-12-01",
+    "end_date": "2024-12-31"
+  },
+  "filters": {
+    "role_types": [1, 2, 3, 4],
+    "include_details": true
+  }
+}
+
+### T9. 获取报表状态
+GET {{baseUrl}}/dashboard/reports/report-id-here/status
+Authorization: Bearer {{token}}
+
+### T10. 下载报表
+GET {{baseUrl}}/dashboard/reports/report-id-here/download
+Authorization: Bearer {{token}}
+
+### T11. 获取系统统计（管理员权限）
+GET {{baseUrl}}/dashboard/system-stats
+Authorization: Bearer {{token}}
+
+### T12. 获取地区统计（管理员权限）
+GET {{baseUrl}}/dashboard/regional-stats?region=all
+Authorization: Bearer {{token}}
+
+### ========== 学员管理完整功能补充 (/students) ==========
+
+### U1. 批量导入学员
+POST {{baseUrl}}/students/csv-import
+Content-Type: multipart/form-data
+Authorization: Bearer {{token}}
+
+# 需要上传CSV文件
+
+### U2. 云文档导入
+POST {{baseUrl}}/students/cloud-import
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "data": [
+    {
+      "姓名": "云文档学员1",
+      "联系电话": "13900005001",
+      "身份证": "110101199005011234",
+      "性别": "男",
+      "学历": "大专",
+      "报读课程": "护工培训",
+      "学费": "2000",
+      "已缴费用": "2000",
+      "缴费状态": "已缴清"
+    }
+  ]
+}
+
+### U3. 自动匹配学员数据
+POST {{baseUrl}}/students/match-data
+Authorization: Bearer {{token}}
+
+### U4. 获取未匹配学员
+GET {{baseUrl}}/students/unmatched?type=exam_students&page=1&page_size=20
+Authorization: Bearer {{token}}
+
+### U5. 手动匹配学员
+POST {{baseUrl}}/students/manual-match?exam_student_id=1&reward_student_id=1
+Authorization: Bearer {{token}}
+
+### U6. 导出学员数据
+GET {{baseUrl}}/students/export?format=excel&type=exam_students&start_date=2024-12-01&end_date=2024-12-31
+Authorization: Bearer {{token}}
+
+### U7. 获取学员统计
+GET {{baseUrl}}/students/statistics/students
+Authorization: Bearer {{token}}
+
+### U8. 获取报考统计
+GET {{baseUrl}}/students/statistics/enrollments
+Authorization: Bearer {{token}}
+
+### U9. 获取奖励统计
+GET {{baseUrl}}/students/statistics/rewards
+Authorization: Bearer {{token}}
+
+### ========== 团队管理完整功能补充 (/teams) ==========
+
+### V1. 获取团队层级结构
+GET {{baseUrl}}/teams/hierarchy?user_id=1&max_depth=5
+Authorization: Bearer {{token}}
+
+### V2. 获取团队业绩
+GET {{baseUrl}}/teams/performance?user_id=1&period=current_month
+Authorization: Bearer {{token}}
+
+### V3. 转移团队成员
+POST {{baseUrl}}/teams/transfer
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "member_user_id": 5,
+  "new_parent_user_id": 3,
+  "transfer_reason": "团队重组"
+}
+
+### V4. 移除团队成员
+POST {{baseUrl}}/teams/remove
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "member_user_id": 5,
+  "removal_reason": "成员离职"
+}
+
+### V5. 批量团队操作
+POST {{baseUrl}}/teams/bulk-operation
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "operation": "transfer",
+  "member_user_ids": [5, 6, 7],
+  "new_parent_user_id": 3,
+  "operation_reason": "批量转移到新团队"
+}
+
+### V6. 搜索用户
+GET {{baseUrl}}/teams/search-users?keyword=张&role_type=1&page=1&page_size=20
+Authorization: Bearer {{token}}
+
+### V7. 获取团队统计
+GET {{baseUrl}}/teams/statistics?user_id=1
+Authorization: Bearer {{token}}
+
+### V8. 获取团队分析
+GET {{baseUrl}}/teams/analytics?user_id=1&period=current_quarter
+Authorization: Bearer {{token}}
+
+### V9. 导出团队数据
+POST {{baseUrl}}/teams/export
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "export_type": "team_structure",
+  "format": "excel",
+  "include_performance": true
+}
+
+### ========== WebSocket 连接测试 ==========
+
+### W1. WebSocket 通知连接
+# 连接地址: ws://localhost:8000/api/v1/notifications/ws/{user_id}
+# 需要使用WebSocket客户端工具测试
+
+### ========== 系统基础接口 ==========
+
+### X1. 根路径
+GET {{baseUrl}}/../../
+Authorization: Bearer {{token}}
+
+### X2. 健康检查
+GET {{baseUrl}}/../../health
+Authorization: Bearer {{token}}
+
+### X3. 获取OpenAPI文档
+GET {{baseUrl}}/../../openapi.json
+Authorization: Bearer {{token}}

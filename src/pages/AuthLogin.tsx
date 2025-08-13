@@ -66,7 +66,7 @@ export default function AuthLogin() {
               {loading ? '登录中...' : '登录'}
             </Button>
             <div className="text-sm text-center text-muted-foreground">
-              没有账号？请联系管理员创建后台账号
+              没有账号？<a className="text-primary hover:underline" href="/register">立即注册</a>
             </div>
           </form>
         </CardContent>
