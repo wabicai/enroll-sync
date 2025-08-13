@@ -38,7 +38,7 @@ export const useAppStore = create<AppState>()(
       user: null,
       accessToken: null,
       refreshToken: null,
-      theme: 'system',
+      theme: 'light',
       sidebarCollapsed: false,
       isAuthenticated: false,
 

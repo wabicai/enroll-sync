@@ -141,8 +141,17 @@ export default function ApprovalsEnhanced() {
 
   // 获取当前步骤名称
   const getCurrentStepName = (item: any) => {
-    const currentStep = item.enhanced_steps?.[item.instance.current_step_index];
-    return currentStep ? stepNameMap[currentStep.step_key] || currentStep.step_key : '未知步骤';
+    // 优先使用 enhanced_steps，回退到 steps
+    const steps = item.enhanced_steps || item.steps;
+    if (!steps || steps.length === 0) return '未知步骤';
+
+    const currentStepIndex = item.instance.current_step_index;
+    if (currentStepIndex < 0 || currentStepIndex >= steps.length) return '未知步骤';
+
+    const currentStep = steps[currentStepIndex];
+    if (!currentStep || !currentStep.step_key) return '未知步骤';
+
+    return stepNameMap[currentStep.step_key] || currentStep.step_key;
   };
 
   // 格式化时间
@@ -871,20 +880,24 @@ export default function ApprovalsEnhanced() {
                       const stepStatus = stepStatusMap[s.status] || { label: '未知', variant: 'secondary' as const };
                       const isCurrentStep = index === inst.current_step_index;
                       return (
-                        <div key={s.id} className={`flex items-center gap-3 p-3 rounded-lg border ${isCurrentStep ? 'bg-blue-50 border-blue-200' : 'bg-white border-gray-200'}`}>
+                        <div key={s.id} className={`flex items-center gap-3 p-3 rounded-lg border ${
+                          isCurrentStep
+                            ? 'bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800'
+                            : 'bg-card border-border'
+                        }`}>
                           <Badge variant={isCurrentStep ? 'default' : stepStatus.variant}>
                             {stepNameMap[s.step_key] || s.step_key}
                           </Badge>
                           <div className="flex-1">
-                            <div className="text-sm font-medium text-gray-900">{stepStatus.label}</div>
+                            <div className="text-sm font-medium text-foreground">{stepStatus.label}</div>
                             {s.auditor_name && (
-                              <div className="text-xs text-gray-600">审批人: {s.auditor_name}</div>
+                              <div className="text-xs text-muted-foreground">审批人: {s.auditor_name}</div>
                             )}
                             {s.audit_time && (
-                              <div className="text-xs text-gray-600">审批时间: {formatTime(s.audit_time)}</div>
+                              <div className="text-xs text-muted-foreground">审批时间: {formatTime(s.audit_time)}</div>
                             )}
                             {s.audit_reason && (
-                              <div className="text-xs text-gray-600">审批意见: {s.audit_reason}</div>
+                              <div className="text-xs text-muted-foreground">审批意见: {s.audit_reason}</div>
                             )}
                           </div>
                         </div>
@@ -914,23 +927,23 @@ export default function ApprovalsEnhanced() {
                     </div>
                   )}
                   {current && current.status !== 1 && (
-                    <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
+                    <div className="text-sm text-muted-foreground bg-muted p-3 rounded-lg">
                       当前步骤已处理，状态：{stepStatusMap[current.status]?.label || '未知'}
                       {current.auditor_name && ` (审批人: ${current.auditor_name})`}
                     </div>
                   )}
                   {inst.status === 3 && (
-                    <div className="text-sm text-green-600 bg-green-50 p-3 rounded-lg">
+                    <div className="text-sm text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-950 p-3 rounded-lg">
                       审批已完成，状态：已通过
                     </div>
                   )}
                   {inst.status === 4 && (
-                    <div className="text-sm text-red-600 bg-red-50 p-3 rounded-lg">
+                    <div className="text-sm text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-950 p-3 rounded-lg">
                       审批已完成，状态：已拒绝
                     </div>
                   )}
                   {inst.status === 1 && (
-                    <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
+                    <div className="text-sm text-muted-foreground bg-muted p-3 rounded-lg">
                       审批尚未开始
                     </div>
                   )}

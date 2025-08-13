@@ -17,7 +17,9 @@ import { logout as apiLogout } from '@/lib/api';
 export function AppHeader() {
   const { user, theme, setTheme, logout, clearTokens, setIsAuthenticated } = useAppStore();
 
-  const handleThemeChange = (newTheme: 'light' | 'dark' | 'system') => {
+  const handleThemeToggle = () => {
+    // 如果当前是 system 或 light，切换到 dark；如果是 dark，切换到 light
+    const newTheme = (theme === 'dark') ? 'light' : 'dark';
     setTheme(newTheme);
   };
 
@@ -89,29 +91,11 @@ export function AppHeader() {
           </DropdownMenu>
 
           {/* 主题切换 */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                {theme === 'light' && <Sun className="h-4 w-4" />}
-                {theme === 'dark' && <Moon className="h-4 w-4" />}
-                {theme === 'system' && <Monitor className="h-4 w-4" />}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => handleThemeChange('light')}>
-                <Sun className="mr-2 h-4 w-4" />
-                浅色模式
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleThemeChange('dark')}>
-                <Moon className="mr-2 h-4 w-4" />
-                深色模式
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleThemeChange('system')}>
-                <Monitor className="mr-2 h-4 w-4" />
-                跟随系统
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Button variant="ghost" size="icon" onClick={handleThemeToggle}>
+            {theme === 'light' && <Sun className="h-4 w-4" />}
+            {theme === 'dark' && <Moon className="h-4 w-4" />}
+            {theme === 'system' && <Monitor className="h-4 w-4" />}
+          </Button>
 
           {/* 用户菜单 */}
           {user && (
