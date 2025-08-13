@@ -1053,7 +1053,9 @@ export async function updateAssessmentRules(rules: any[]) {
 
 
 
-// Unified Approval Center (Legacy - for backward compatibility)
+// ======================== 统一审批中心 ========================
+// 通用审批接口 - 适用于后台管理系统的统一审批工作台
+
 export async function fetchApprovalsPending(params?: { page?: number; page_size?: number; target_type?: string }) {
   const sp = new URLSearchParams();
   if (params?.page) sp.set('page', String(params.page));
@@ -1066,7 +1068,8 @@ export async function decideApprovalStep(instanceId: number | string, stepKey: s
   return httpPost(`${API_V1}/approvals/${instanceId}/steps/${stepKey}/decision`, { approve, reason });
 }
 
-// Type-Specific Approval APIs
+// ======================== 类型特定审批接口 ========================
+// 业务模块专用接口 - 提供更丰富的业务上下文信息
 export async function fetchUserRegistrationApprovals(params?: { page?: number; page_size?: number }) {
   const sp = new URLSearchParams();
   if (params?.page) sp.set('page', String(params.page));
