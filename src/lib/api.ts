@@ -1064,6 +1064,20 @@ export async function fetchApprovalsPending(params?: { page?: number; page_size?
   return httpGet(`${API_V1}/approvals/pending${sp.toString() ? `?${sp.toString()}` : ''}`);
 }
 
+export async function fetchApprovalsAll(params?: {
+  page?: number;
+  page_size?: number;
+  target_type?: string;
+  status?: number;
+}) {
+  const sp = new URLSearchParams();
+  if (params?.page) sp.set('page', String(params.page));
+  if (params?.page_size) sp.set('page_size', String(params.page_size));
+  if (params?.target_type) sp.set('target_type', params.target_type);
+  if (params?.status !== undefined) sp.set('status', String(params.status));
+  return httpGet(`${API_V1}/approvals/all${sp.toString() ? `?${sp.toString()}` : ''}`);
+}
+
 export async function decideApprovalStep(instanceId: number | string, stepKey: string, approve: boolean, reason?: string) {
   return httpPost(`${API_V1}/approvals/${instanceId}/steps/${stepKey}/decision`, { approve, reason });
 }
