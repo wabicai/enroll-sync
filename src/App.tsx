@@ -14,7 +14,6 @@ import NotFound from "./pages/NotFound";
 import AuthLogin from "./pages/AuthLogin";
 import AuthRegister from "./pages/AuthRegister";
 import Approvals from "./pages/Approvals";
-import ApprovalsEnhanced from "./pages/ApprovalsEnhanced";
 import Courses from "./pages/Courses";
 import Schedules from "./pages/Schedules";
 import { useAppStore } from "@/store/useAppStore";
@@ -50,8 +49,7 @@ const App = () => {
             <Route path="/register" element={<AuthRegister />} />
             <Route path="/" element={<AppLayout />}>
               <Route index element={<Dashboard />} />
-              <Route path="approvals" element={<Protected><ApprovalsEnhanced /></Protected>} />
-              <Route path="approvals-old" element={<Protected><Approvals /></Protected>} />
+              <Route path="approvals" element={<Protected><Approvals /></Protected>} />
               <Route path="users" element={<Protected><Users /></Protected>} />
               <Route path="students" element={<Protected><Students /></Protected>} />
               <Route path="courses" element={<Protected><Courses /></Protected>} />

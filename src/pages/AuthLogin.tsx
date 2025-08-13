@@ -24,13 +24,38 @@ export default function AuthLogin() {
       const res = await loginAdmin(username.trim(), password);
       // store tokens and user
       setTokens(res.token.access_token, res.token.refresh_token);
-      // Map backend CurrentUser to frontend User type lightly
+      
+      // 根据后端用户角色映射前端角色
+      const mapUserRole = (backendRoles: any[]) => {
+        if (!backendRoles || backendRoles.length === 0) {
+          return 'system_admin'; // 默认角色
+        }
+        
+        // 获取第一个激活的角色
+        const activeRole = backendRoles.find((role: any) => role.status === 1);
+        if (!activeRole) {
+          return 'system_admin';
+        }
+        
+        // 根据后端角色类型映射前端角色
+        switch (activeRole.role_type) {
+          case 6: // 总经理
+            return 'general_manager';
+          case 7: // 考务组（同时承担财务职能）
+          case 8: // 财务（与考务组是同一人）
+            return 'exam_admin';
+          default:
+            return 'system_admin'; // 其他角色暂时都映射为系统管理员
+        }
+      };
+      
+      // Map backend CurrentUser to frontend User type
       const mappedUser = {
         id: String(res.user.id),
         name: res.user.real_name || res.user.username,
         email: res.user.username,
         phone: res.user.phone,
-        role: 'system_admin' as const,
+        role: mapUserRole(res.user.roles),
         status: 'active' as const,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
