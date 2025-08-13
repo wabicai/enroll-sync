@@ -5,8 +5,9 @@ import type { ApiResponse } from '@/types';
 // API配置 - 统一的环境控制
 const API_CONFIG = {
   MOCK: 'mock',
-  LOCAL: 'http://localhost:8000',
-  PRODUCTION: 'https://chuangningpeixun.com'
+  // LOCAL: 'http://localhost:8000',
+  PRODUCTION: 'http://localhost:8000',
+  // PRODUCTION: 'https://chuangningpeixun.com'
 } as const;
 
 // 当前API模式，通过环境变量控制
