@@ -11,7 +11,6 @@ import {
   Bell,
   TrendingUp,
   Download,
-  DollarSign,
   BookOpen,
   ChevronDown,
 } from 'lucide-react';
@@ -91,11 +90,6 @@ const menuGroups = [
         title: '导出中心',
         url: '/exports',
         icon: Download,
-      },
-      {
-        title: '财务',
-        url: '/finance',
-        icon: DollarSign,
       },
       {
         title: '系统设置',

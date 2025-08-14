@@ -1,11 +1,24 @@
-import { useEffect, useState } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useEffect, useState } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Pagination,
   PaginationContent,
@@ -14,43 +27,48 @@ import {
   PaginationLink,
   PaginationNext,
   PaginationPrevious,
-} from '@/components/ui/pagination';
+} from "@/components/ui/pagination";
+import { fetchApprovalsAll, decideApprovalStep } from "@/lib/api";
+import { useAppStore } from "@/store/useAppStore";
 import {
-  fetchApprovalsAll,
-  decideApprovalStep
-} from '@/lib/api';
-import { useAppStore } from '@/store/useAppStore';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 
 // 状态映射
 const approvalStatusMap: Record<number, string> = {
-  1: '待开始',
-  2: '进行中', 
-  3: '已通过',
-  4: '已拒绝'
+  1: "待开始",
+  2: "进行中",
+  3: "已通过",
+  4: "已拒绝",
 };
 
-const stepStatusMap: Record<number, { label: string; variant: 'default' | 'secondary' | 'destructive' }> = {
-  1: { label: '待审', variant: 'secondary' },
-  2: { label: '已通过', variant: 'default' },
-  3: { label: '已拒绝', variant: 'destructive' }
+const stepStatusMap: Record<
+  number,
+  { label: string; variant: "default" | "secondary" | "destructive" }
+> = {
+  1: { label: "待审", variant: "secondary" },
+  2: { label: "已通过", variant: "default" },
+  3: { label: "已拒绝", variant: "destructive" },
 };
 
 const stepNameMap: Record<string, string> = {
-  'exam': '考务审核',
-  'finance': '财务发放',
-  'gm': '总经理审批'
+  exam: "考务审核",
+  finance: "财务发放",
+  gm: "总经理审批",
 };
 
 const roleTypeMap: Record<number, string> = {
-  1: '全职招生',
-  2: '兼职招生',
-  3: '自由招生',
-  4: '渠道招生',
-  5: '团队负责人',
-  6: '总经理',
-  7: '考务组',
-  8: '考务组'  // 财务和考务组统一为考务组
+  1: "全职招生",
+  2: "兼职招生",
+  3: "自由招生",
+  4: "渠道招生",
+  5: "团队负责人",
+  6: "总经理",
+  7: "考务组",
+  8: "考务组", // 财务和考务组统一为考务组
 };
 
 export default function Approvals() {
@@ -71,15 +89,17 @@ export default function Approvals() {
   const [totalPages, setTotalPages] = useState(0);
 
   // 获取当前标签页和状态筛选
-  const currentTab = searchParams.get('type') || 'registrations';
-  const currentStatus = searchParams.get('status') ? parseInt(searchParams.get('status')!) : undefined;
+  const currentTab = searchParams.get("type") || "registrations";
+  const currentStatus = searchParams.get("status")
+    ? parseInt(searchParams.get("status")!)
+    : undefined;
 
   // 标签页映射
   const tabTypeMap: Record<string, string> = {
-    'registrations': 'user_registration',
-    'students': 'student_enrollment', 
-    'rewards': 'reward_application',
-    'roles': 'user_role_upgrade'
+    registrations: "user_registration",
+    students: "student_enrollment",
+    rewards: "reward_application",
+    roles: "user_role_upgrade",
   };
 
   // 加载审批数据
@@ -91,14 +111,14 @@ export default function Approvals() {
         page: currentPage,
         page_size: pageSize,
         target_type: targetType,
-        status: currentStatus
+        status: currentStatus,
       });
 
       setApprovals((response as any).items || []);
       setTotal((response as any).total || 0);
       setTotalPages((response as any).pages || 0);
     } catch (error) {
-      console.error('Failed to load approval data:', error);
+      console.error("Failed to load approval data:", error);
     } finally {
       setLoading(false);
     }
@@ -107,8 +127,8 @@ export default function Approvals() {
   // 处理标签页切换
   const handleTabChange = (value: string) => {
     const newParams = new URLSearchParams(searchParams);
-    newParams.set('type', value);
-    newParams.delete('status'); // 切换标签页时清除状态筛选
+    newParams.set("type", value);
+    newParams.delete("status"); // 切换标签页时清除状态筛选
     setSearchParams(newParams);
     setCurrentPage(1); // 重置页码
   };
@@ -116,10 +136,10 @@ export default function Approvals() {
   // 处理状态筛选
   const handleStatusChange = (status: string) => {
     const newParams = new URLSearchParams(searchParams);
-    if (status === 'all') {
-      newParams.delete('status');
+    if (status === "all") {
+      newParams.delete("status");
     } else {
-      newParams.set('status', status);
+      newParams.set("status", status);
     }
     setSearchParams(newParams);
     setCurrentPage(1); // 重置页码
@@ -131,13 +151,18 @@ export default function Approvals() {
   };
 
   // 处理审批决策
-  const handleApprovalDecision = async (instanceId: number, stepKey: string, approve: boolean, reason?: string) => {
+  const handleApprovalDecision = async (
+    instanceId: number,
+    stepKey: string,
+    approve: boolean,
+    reason?: string
+  ) => {
     try {
       await decideApprovalStep(instanceId, stepKey, approve, reason);
       setApprovalOpen(false);
       loadApprovalData(); // 重新加载数据
     } catch (error) {
-      console.error('Failed to process approval:', error);
+      console.error("Failed to process approval:", error);
     }
   };
 
@@ -145,39 +170,40 @@ export default function Approvals() {
   const getCurrentStepName = (item: any) => {
     // 优先使用 enhanced_steps，回退到 steps
     const steps = item.enhanced_steps || item.steps;
-    if (!steps || steps.length === 0) return '未知步骤';
+    if (!steps || steps.length === 0) return "未知步骤";
 
     const currentStepIndex = item.instance.current_step_index;
-    if (currentStepIndex < 0 || currentStepIndex >= steps.length) return '未知步骤';
+    if (currentStepIndex < 0 || currentStepIndex >= steps.length)
+      return "未知步骤";
 
     const currentStep = steps[currentStepIndex];
-    if (!currentStep || !currentStep.step_key) return '未知步骤';
+    if (!currentStep || !currentStep.step_key) return "未知步骤";
 
     return stepNameMap[currentStep.step_key] || currentStep.step_key;
   };
 
   // 格式化时间
   const formatTime = (timeStr: string | null) => {
-    if (!timeStr) return '-';
-    return new Date(timeStr).toLocaleString('zh-CN');
+    if (!timeStr) return "-";
+    return new Date(timeStr).toLocaleString("zh-CN");
   };
 
   // 检查用户是否有审批当前步骤的权限
   const canApproveStep = (stepKey: string): boolean => {
     if (!user) return false;
-    
+
     // 总经理和系统管理员有所有权限
-    if (user.role === 'general_manager' || user.role === 'system_admin') {
+    if (user.role === "general_manager" || user.role === "system_admin") {
       return true;
     }
-    
+
     // 根据步骤类型检查权限
     switch (stepKey) {
-      case 'exam':
-        return user.role === 'exam_admin';
-      case 'finance':
+      case "exam":
+        return user.role === "exam_admin";
+      case "finance":
         // 财务步骤：考务组承担财务职能
-        return user.role === 'exam_admin';
+        return user.role === "exam_admin";
       default:
         return false;
     }
@@ -201,7 +227,10 @@ export default function Approvals() {
           <div className="flex items-center justify-between">
             <CardTitle>审批列表</CardTitle>
             <div className="flex items-center gap-4">
-              <Select value={currentStatus?.toString() || 'all'} onValueChange={handleStatusChange}>
+              <Select
+                value={currentStatus?.toString() || "all"}
+                onValueChange={handleStatusChange}
+              >
                 <SelectTrigger className="w-32">
                   <SelectValue placeholder="状态筛选" />
                 </SelectTrigger>
@@ -233,79 +262,261 @@ export default function Approvals() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>申请人</TableHead>
-                        <TableHead>当前步骤</TableHead>
-                        <TableHead>审批状态</TableHead>
-                        <TableHead>创建时间</TableHead>
-                        <TableHead>操作</TableHead>
+                        {currentTab === "students" ? (
+                          <>
+                            <TableHead>招生人员</TableHead>
+                            <TableHead>学员信息</TableHead>
+                            <TableHead>奖励金额</TableHead>
+                            <TableHead>当前步骤</TableHead>
+                            <TableHead>审批状态</TableHead>
+                            <TableHead>创建时间</TableHead>
+                            <TableHead>操作</TableHead>
+                          </>
+                        ) : currentTab === "rewards" ? (
+                          <>
+                            <TableHead>招生人员</TableHead>
+                            <TableHead>学员信息</TableHead>
+                            <TableHead>奖励金额</TableHead>
+                            <TableHead>当前步骤</TableHead>
+                            <TableHead>审批状态</TableHead>
+                            <TableHead>创建时间</TableHead>
+                            <TableHead>操作</TableHead>
+                          </>
+                        ) : (
+                          <>
+                            <TableHead>申请人</TableHead>
+                            <TableHead>当前步骤</TableHead>
+                            <TableHead>审批状态</TableHead>
+                            <TableHead>创建时间</TableHead>
+                            <TableHead>操作</TableHead>
+                          </>
+                        )}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {approvals.map((item) => {
-                        const { instance: inst, user_details, student_details, reward_details, role_upgrade_details } = item;
+                        const {
+                          instance: inst,
+                          user_details,
+                          student_details,
+                          reward_details,
+                          role_upgrade_details,
+                        } = item;
                         const steps = item.enhanced_steps || item.steps || [];
                         const current = steps[inst.current_step_index];
-                        
+
                         // 获取申请人姓名
                         const getApplicantName = () => {
-                          if (inst.target_type === 'user_registration' && user_details) {
-                            return user_details.name;  // 修正字段名
+                          if (
+                            inst.target_type === "user_registration" &&
+                            user_details
+                          ) {
+                            return user_details.name; // 修正字段名
                           }
-                          if (inst.target_type === 'student_enrollment' && student_details) {
+                          if (
+                            inst.target_type === "student_enrollment" &&
+                            student_details
+                          ) {
                             return student_details.student_name;
                           }
-                          if (inst.target_type === 'reward_application' && reward_details) {
-                            return reward_details.applicant_name || reward_details.student_name;  // 支持两个字段
+                          if (
+                            inst.target_type === "reward_application" &&
+                            reward_details
+                          ) {
+                            return (
+                              reward_details.applicant_name ||
+                              reward_details.student_name
+                            ); // 支持两个字段
                           }
-                          if (inst.target_type === 'user_role_upgrade' && role_upgrade_details) {
-                            return role_upgrade_details.user_name;  // 修正字段名
+                          if (
+                            inst.target_type === "user_role_upgrade" &&
+                            role_upgrade_details
+                          ) {
+                            return role_upgrade_details.user_name; // 修正字段名
                           }
                           return `ID: ${inst.target_id}`;
                         };
-                        
+
+                        // 获取招生人员信息
+                        const getRecruiterName = () => {
+                          if (
+                            inst.target_type === "student_enrollment" &&
+                            student_details
+                          ) {
+                            return (
+                              student_details.recruiter_name || "未知招生人员"
+                            );
+                          }
+                          if (
+                            inst.target_type === "reward_application" &&
+                            reward_details
+                          ) {
+                            return (
+                              reward_details.recruiter_name || "未知招生人员"
+                            );
+                          }
+                          return "-";
+                        };
+
+                        // 获取学员信息
+                        const getStudentInfo = () => {
+                          if (
+                            inst.target_type === "student_enrollment" &&
+                            student_details
+                          ) {
+                            return `${student_details.student_name} (${
+                              student_details.course_name || "未知课程"
+                            })`;
+                          }
+                          if (
+                            inst.target_type === "reward_application" &&
+                            reward_details
+                          ) {
+                            return `${reward_details.student_name} (${
+                              reward_details.course_name || "未知课程"
+                            })`;
+                          }
+                          return "-";
+                        };
+
+                        // 获取奖励金额
+                        const getRewardAmount = () => {
+                          if (
+                            inst.target_type === "student_enrollment" &&
+                            student_details
+                          ) {
+                            return student_details.reward_amount
+                              ? `¥${student_details.reward_amount}`
+                              : "¥0";
+                          }
+                          if (
+                            inst.target_type === "reward_application" &&
+                            reward_details
+                          ) {
+                            return reward_details.reward_amount
+                              ? `¥${reward_details.reward_amount}`
+                              : "¥0";
+                          }
+                          return "-";
+                        };
+
                         return (
                           <TableRow key={inst.id}>
-                            <TableCell>
-                              <div className="space-y-1">
-                                <div className="font-medium">
-                                  {getApplicantName()}
-                                </div>
-                                <div className="text-sm text-muted-foreground">
-                                  ID: {inst.target_id}
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline">
-                                {getCurrentStepName(item)}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Badge 
-                                variant={
-                                  inst.status === 3 ? 'default' : 
-                                  inst.status === 4 ? 'destructive' : 
-                                  'secondary'
-                                }
-                              >
-                                {approvalStatusMap[inst.status] || '未知'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-sm text-muted-foreground">
-                              {formatTime(inst.created_at)}
-                            </TableCell>
-                            <TableCell>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedApproval(item);
-                                  setApprovalOpen(true);
-                                }}
-                              >
-                                查看详情
-                              </Button>
-                            </TableCell>
+                            {currentTab === "students" ||
+                            currentTab === "rewards" ? (
+                              <>
+                                <TableCell>
+                                  <div className="space-y-1">
+                                    <div className="font-medium">
+                                      {getRecruiterName()}
+                                    </div>
+                                    <div className="text-sm text-muted-foreground">
+                                      {roleTypeMap[
+                                        student_details?.recruiter_role_type ||
+                                          reward_details?.recruiter_role_type
+                                      ] || "未知身份"}
+                                    </div>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="space-y-1">
+                                    <div className="font-medium">
+                                      {getStudentInfo()}
+                                    </div>
+                                    <div className="text-sm text-muted-foreground">
+                                      手机:{" "}
+                                      {student_details?.student_phone ||
+                                        reward_details?.student_phone ||
+                                        "未知"}
+                                    </div>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="font-medium text-green-600">
+                                    {getRewardAmount()}
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant="outline">
+                                    {getCurrentStepName(item)}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge
+                                    variant={
+                                      inst.status === 3
+                                        ? "default"
+                                        : inst.status === 4
+                                        ? "destructive"
+                                        : "secondary"
+                                    }
+                                  >
+                                    {approvalStatusMap[inst.status] || "未知"}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-sm text-muted-foreground">
+                                  {formatTime(inst.created_at)}
+                                </TableCell>
+                                <TableCell>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedApproval(item);
+                                      setApprovalOpen(true);
+                                    }}
+                                  >
+                                    查看详情
+                                  </Button>
+                                </TableCell>
+                              </>
+                            ) : (
+                              <>
+                                <TableCell>
+                                  <div className="space-y-1">
+                                    <div className="font-medium">
+                                      {getApplicantName()}
+                                    </div>
+                                    <div className="text-sm text-muted-foreground">
+                                      ID: {inst.target_id}
+                                    </div>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant="outline">
+                                    {getCurrentStepName(item)}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge
+                                    variant={
+                                      inst.status === 3
+                                        ? "default"
+                                        : inst.status === 4
+                                        ? "destructive"
+                                        : "secondary"
+                                    }
+                                  >
+                                    {approvalStatusMap[inst.status] || "未知"}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-sm text-muted-foreground">
+                                  {formatTime(inst.created_at)}
+                                </TableCell>
+                                <TableCell>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedApproval(item);
+                                      setApprovalOpen(true);
+                                    }}
+                                  >
+                                    查看详情
+                                  </Button>
+                                </TableCell>
+                              </>
+                            )}
                           </TableRow>
                         );
                       })}
@@ -317,32 +528,49 @@ export default function Approvals() {
                       <Pagination>
                         <PaginationContent>
                           <PaginationItem>
-                            <PaginationPrevious 
-                              onClick={() => currentPage > 1 && handlePageChange(currentPage - 1)}
-                              className={currentPage <= 1 ? 'pointer-events-none opacity-50' : ''}
+                            <PaginationPrevious
+                              onClick={() =>
+                                currentPage > 1 &&
+                                handlePageChange(currentPage - 1)
+                              }
+                              className={
+                                currentPage <= 1
+                                  ? "pointer-events-none opacity-50"
+                                  : ""
+                              }
                             />
                           </PaginationItem>
-                          
-                          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                            const page = i + 1;
-                            return (
-                              <PaginationItem key={page}>
-                                <PaginationLink
-                                  onClick={() => handlePageChange(page)}
-                                  isActive={currentPage === page}
-                                >
-                                  {page}
-                                </PaginationLink>
-                              </PaginationItem>
-                            );
-                          })}
-                          
+
+                          {Array.from(
+                            { length: Math.min(5, totalPages) },
+                            (_, i) => {
+                              const page = i + 1;
+                              return (
+                                <PaginationItem key={page}>
+                                  <PaginationLink
+                                    onClick={() => handlePageChange(page)}
+                                    isActive={currentPage === page}
+                                  >
+                                    {page}
+                                  </PaginationLink>
+                                </PaginationItem>
+                              );
+                            }
+                          )}
+
                           {totalPages > 5 && <PaginationEllipsis />}
-                          
+
                           <PaginationItem>
-                            <PaginationNext 
-                              onClick={() => currentPage < totalPages && handlePageChange(currentPage + 1)}
-                              className={currentPage >= totalPages ? 'pointer-events-none opacity-50' : ''}
+                            <PaginationNext
+                              onClick={() =>
+                                currentPage < totalPages &&
+                                handlePageChange(currentPage + 1)
+                              }
+                              className={
+                                currentPage >= totalPages
+                                  ? "pointer-events-none opacity-50"
+                                  : ""
+                              }
                             />
                           </PaginationItem>
                         </PaginationContent>
@@ -368,212 +596,357 @@ export default function Approvals() {
           <SheetHeader>
             <SheetTitle>审批详情</SheetTitle>
           </SheetHeader>
-          {selectedApproval && (() => {
-            const { instance: inst, steps, user_details, student_details, reward_details, role_upgrade_details } = selectedApproval;
-            const current = steps?.[inst.current_step_index];
-            
-            return (
-              <div className="space-y-6 py-4">
-                {/* 基本信息 */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">基本信息</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium">审批类型</label>
-                      <div className="mt-1">
-                        {inst.target_type === 'user_registration' && '用户注册申请'}
-                        {inst.target_type === 'student_enrollment' && '学员报名申请'}
-                        {inst.target_type === 'reward_application' && '奖励申请'}
-                        {inst.target_type === 'user_role_upgrade' && '角色升级申请'}
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium">申请ID</label>
-                      <div className="mt-1">{inst.target_id}</div>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium">当前状态</label>
-                      <div className="mt-1">
-                        <Badge variant={inst.status === 3 ? 'default' : inst.status === 4 ? 'destructive' : 'secondary'}>
-                          {approvalStatusMap[inst.status]}
-                        </Badge>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium">创建时间</label>
-                      <div className="mt-1">{formatTime(inst.created_at)}</div>
-                    </div>
-                  </div>
-                </div>
+          {selectedApproval &&
+            (() => {
+              const {
+                instance: inst,
+                steps,
+                user_details,
+                student_details,
+                reward_details,
+                role_upgrade_details,
+              } = selectedApproval;
+              const current = steps?.[inst.current_step_index];
 
-                {/* 详细信息 */}
-                {user_details && (
+              return (
+                <div className="space-y-6 py-4">
+                  {/* 基本信息 */}
                   <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">用户信息</h3>
+                    <h3 className="text-lg font-semibold">基本信息</h3>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="text-sm font-medium">姓名</label>
-                        <div className="mt-1">{user_details.name}</div>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium">手机号</label>
-                        <div className="mt-1">{user_details.phone}</div>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium">用户名</label>
-                        <div className="mt-1">{user_details.username}</div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {student_details && (
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">学员信息</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-sm font-medium">学员姓名</label>
-                        <div className="mt-1">{student_details.student_name}</div>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium">报读课程</label>
-                        <div className="mt-1">{student_details.course_name}</div>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium">学费金额</label>
-                        <div className="mt-1">¥{student_details.total_fee}</div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {reward_details && (
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">奖励信息</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-sm font-medium">申请人</label>
-                        <div className="mt-1">{reward_details.applicant_name || reward_details.student_name}</div>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium">奖励金额</label>
-                        <div className="mt-1">¥{reward_details.reward_amount}</div>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium">申请原因</label>
-                        <div className="mt-1">{reward_details.application_reason}</div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {role_upgrade_details && (
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">升级信息</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-sm font-medium">申请人</label>
-                        <div className="mt-1">{role_upgrade_details.user_name}</div>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium">当前角色</label>
-                        <div className="mt-1">{role_upgrade_details.current_role}</div>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium">目标角色</label>
-                        <div className="mt-1">{role_upgrade_details.target_role}</div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* 审批流程 */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">审批流程</h3>
-                  <div className="space-y-3">
-                    {steps.map((step: any, index: number) => {
-                      const isCurrentStep = index === inst.current_step_index;
-                      const stepStatus = stepStatusMap[step.status] || { label: '未知', variant: 'secondary' as const };
-                      
-                      return (
-                        <div 
-                          key={step.id} 
-                          className={`flex items-center gap-3 p-3 rounded-lg border ${
-                            isCurrentStep ? 'border-blue-500 bg-blue-50 dark:bg-blue-950' : 'border-gray-200'
-                          }`}
-                        >
-                          <Badge variant={isCurrentStep ? 'default' : stepStatus.variant}>
-                            {stepNameMap[step.step_key] || step.step_key}
-                          </Badge>
-                          <Badge variant={stepStatus.variant}>
-                            {stepStatus.label}
-                          </Badge>
-                          {step.auditor_name && (
-                            <span className="text-sm text-muted-foreground">
-                              审批人: {step.auditor_name}
-                            </span>
-                          )}
-                          {step.audit_time && (
-                            <span className="text-sm text-muted-foreground">
-                              {formatTime(step.audit_time)}
-                            </span>
-                          )}
+                        <label className="text-sm font-medium">审批类型</label>
+                        <div className="mt-1">
+                          {inst.target_type === "user_registration" &&
+                            "用户注册申请"}
+                          {inst.target_type === "student_enrollment" &&
+                            "学员报名申请"}
+                          {inst.target_type === "reward_application" &&
+                            "奖励申请"}
+                          {inst.target_type === "user_role_upgrade" &&
+                            "角色升级申请"}
                         </div>
-                      );
-                    })}
+                      </div>
+                      {/* 隐藏申请ID，根据需求不显示 */}
+                      <div>
+                        <label className="text-sm font-medium">当前状态</label>
+                        <div className="mt-1">
+                          <Badge
+                            variant={
+                              inst.status === 3
+                                ? "default"
+                                : inst.status === 4
+                                ? "destructive"
+                                : "secondary"
+                            }
+                          >
+                            {approvalStatusMap[inst.status]}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">创建时间</label>
+                        <div className="mt-1">
+                          {formatTime(inst.created_at)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 详细信息 */}
+                  {user_details && (
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-semibold">用户信息</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-sm font-medium">姓名</label>
+                          <div className="mt-1">{user_details.name}</div>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">手机号</label>
+                          <div className="mt-1">{user_details.phone}</div>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">用户名</label>
+                          <div className="mt-1">{user_details.username}</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {student_details && (
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-semibold">学员信息</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-sm font-medium">
+                            学员姓名
+                          </label>
+                          <div className="mt-1">
+                            {student_details.student_name}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">手机号</label>
+                          <div className="mt-1">
+                            {student_details.student_phone || "未提供"}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">
+                            报读课程
+                          </label>
+                          <div className="mt-1">
+                            {student_details.course_name}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">
+                            学费金额
+                          </label>
+                          <div className="mt-1">
+                            ¥{student_details.total_fee}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">
+                            缴费状态
+                          </label>
+                          <div className="mt-1">
+                            {student_details.payment_type === 1 ? (
+                              <Badge variant="default">
+                                全额缴费 ¥{student_details.paid_amount}
+                              </Badge>
+                            ) : student_details.payment_type === 2 ? (
+                              <Badge variant="secondary">
+                                首款缴费 ¥{student_details.paid_amount}/
+                                {student_details.total_fee}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline">未知缴费方式</Badge>
+                            )}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">
+                            奖励金额
+                          </label>
+                          <div className="mt-1 text-green-600 font-medium">
+                            ¥{student_details.reward_amount || 0}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">
+                            招生人员
+                          </label>
+                          <div className="mt-1">
+                            {student_details.recruiter_name || "未知"}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {reward_details && (
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-semibold">奖励信息</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-sm font-medium">
+                            招生人员
+                          </label>
+                          <div className="mt-1">
+                            {reward_details.recruiter_name || "未知招生人员"}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">
+                            学员信息
+                          </label>
+                          <div className="mt-1">
+                            {reward_details.student_name} (
+                            {reward_details.course_name || "未知课程"})
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">
+                            奖励金额
+                          </label>
+                          <div className="mt-1 text-green-600 font-medium">
+                            ¥{reward_details.reward_amount}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">
+                            申请原因
+                          </label>
+                          <div className="mt-1">
+                            {reward_details.application_reason || "无"}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">
+                            申请月份
+                          </label>
+                          <div className="mt-1">
+                            {reward_details.application_month || "未指定"}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {role_upgrade_details && (
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-semibold">升级信息</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-sm font-medium">申请人</label>
+                          <div className="mt-1">
+                            {role_upgrade_details.user_name}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">
+                            当前角色
+                          </label>
+                          <div className="mt-1">
+                            {role_upgrade_details.current_role}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">
+                            目标角色
+                          </label>
+                          <div className="mt-1">
+                            {role_upgrade_details.target_role}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 审批流程 */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">审批流程</h3>
+                    <div className="space-y-3">
+                      {steps.map((step: any, index: number) => {
+                        const isCurrentStep = index === inst.current_step_index;
+                        const stepStatus = stepStatusMap[step.status] || {
+                          label: "未知",
+                          variant: "secondary" as const,
+                        };
+
+                        return (
+                          <div
+                            key={step.id}
+                            className={`flex items-center gap-3 p-3 rounded-lg border ${
+                              isCurrentStep
+                                ? "border-blue-500 bg-blue-50 dark:bg-blue-950"
+                                : "border-gray-200"
+                            }`}
+                          >
+                            <Badge
+                              variant={
+                                isCurrentStep ? "default" : stepStatus.variant
+                              }
+                            >
+                              {stepNameMap[step.step_key] || step.step_key}
+                            </Badge>
+                            <Badge variant={stepStatus.variant}>
+                              {stepStatus.label}
+                            </Badge>
+                            {step.auditor_name && (
+                              <span className="text-sm text-muted-foreground">
+                                审批人: {step.auditor_name}
+                              </span>
+                            )}
+                            {step.audit_time && (
+                              <span className="text-sm text-muted-foreground">
+                                {formatTime(step.audit_time)}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 审批操作 */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">审批操作</h3>
+                    {inst.status === 2 &&
+                      current &&
+                      current.status === 1 &&
+                      canApproveStep(current.step_key) && (
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() =>
+                              handleApprovalDecision(
+                                inst.id,
+                                current.step_key,
+                                true
+                              )
+                            }
+                            className="flex-1"
+                          >
+                            通过 (
+                            {stepNameMap[current.step_key] || current.step_key})
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            onClick={() =>
+                              handleApprovalDecision(
+                                inst.id,
+                                current.step_key,
+                                false,
+                                "拒绝"
+                              )
+                            }
+                            className="flex-1"
+                          >
+                            拒绝 (
+                            {stepNameMap[current.step_key] || current.step_key})
+                          </Button>
+                        </div>
+                      )}
+                    {inst.status === 2 &&
+                      current &&
+                      current.status === 1 &&
+                      !canApproveStep(current.step_key) && (
+                        <div className="text-sm text-orange-600 bg-orange-50 dark:text-orange-400 dark:bg-orange-950 p-3 rounded-lg">
+                          当前步骤需要{" "}
+                          {stepNameMap[current.step_key] || current.step_key}{" "}
+                          权限才能审批
+                        </div>
+                      )}
+                    {current && current.status !== 1 && (
+                      <div className="text-sm text-muted-foreground bg-muted p-3 rounded-lg">
+                        当前步骤已处理，状态：
+                        {stepStatusMap[current.status]?.label || "未知"}
+                        {current.auditor_name &&
+                          ` (审批人: ${current.auditor_name})`}
+                      </div>
+                    )}
+                    {inst.status === 3 && (
+                      <div className="text-sm text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-950 p-3 rounded-lg">
+                        审批已完成，状态：已通过
+                      </div>
+                    )}
+                    {inst.status === 4 && (
+                      <div className="text-sm text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-950 p-3 rounded-lg">
+                        审批已完成，状态：已拒绝
+                      </div>
+                    )}
+                    {inst.status === 1 && (
+                      <div className="text-sm text-muted-foreground bg-muted p-3 rounded-lg">
+                        审批尚未开始
+                      </div>
+                    )}
                   </div>
                 </div>
-
-                {/* 审批操作 */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">审批操作</h3>
-                  {inst.status === 2 && current && current.status === 1 && canApproveStep(current.step_key) && (
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={() => handleApprovalDecision(inst.id, current.step_key, true)}
-                        className="flex-1"
-                      >
-                        通过 ({stepNameMap[current.step_key] || current.step_key})
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        onClick={() => handleApprovalDecision(inst.id, current.step_key, false, '拒绝')}
-                        className="flex-1"
-                      >
-                        拒绝 ({stepNameMap[current.step_key] || current.step_key})
-                      </Button>
-                    </div>
-                  )}
-                  {inst.status === 2 && current && current.status === 1 && !canApproveStep(current.step_key) && (
-                    <div className="text-sm text-orange-600 bg-orange-50 dark:text-orange-400 dark:bg-orange-950 p-3 rounded-lg">
-                      当前步骤需要 {stepNameMap[current.step_key] || current.step_key} 权限才能审批
-                    </div>
-                  )}
-                  {current && current.status !== 1 && (
-                    <div className="text-sm text-muted-foreground bg-muted p-3 rounded-lg">
-                      当前步骤已处理，状态：{stepStatusMap[current.status]?.label || '未知'}
-                      {current.auditor_name && ` (审批人: ${current.auditor_name})`}
-                    </div>
-                  )}
-                  {inst.status === 3 && (
-                    <div className="text-sm text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-950 p-3 rounded-lg">
-                      审批已完成，状态：已通过
-                    </div>
-                  )}
-                  {inst.status === 4 && (
-                    <div className="text-sm text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-950 p-3 rounded-lg">
-                      审批已完成，状态：已拒绝
-                    </div>
-                  )}
-                  {inst.status === 1 && (
-                    <div className="text-sm text-muted-foreground bg-muted p-3 rounded-lg">
-                      审批尚未开始
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })()}
+              );
+            })()}
         </SheetContent>
       </Sheet>
     </div>
