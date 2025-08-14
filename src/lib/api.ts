@@ -1078,8 +1078,25 @@ export async function fetchApprovalsAll(params?: {
   return httpGet(`${API_V1}/approvals/all${sp.toString() ? `?${sp.toString()}` : ''}`);
 }
 
+// 新的状态机API - 后端处理所有流转逻辑
 export async function decideApprovalStep(instanceId: number | string, stepKey: string, approve: boolean, reason?: string) {
-  return httpPost(`${API_V1}/approvals/${instanceId}/steps/${stepKey}/decision`, { approve, reason });
+  // 调用新的状态机API，后端会自动处理流转
+  return httpPost(`${API_V1}/approvals/${instanceId}/process`, {
+    action: approve ? 'approve' : 'reject',
+    step_key: stepKey,
+    reason: reason || '',
+    auto_advance: true  // 让后端自动推进到下一步
+  });
+}
+
+// 获取审批工作流的完整状态
+export async function getApprovalWorkflow(instanceId: number | string) {
+  return httpGet(`${API_V1}/approvals/${instanceId}/workflow`);
+}
+
+// 重置审批流程（管理员功能）
+export async function resetApprovalWorkflow(instanceId: number | string, reason: string) {
+  return httpPost(`${API_V1}/approvals/${instanceId}/reset`, { reason });
 }
 
 // ======================== 类型特定审批接口 ========================

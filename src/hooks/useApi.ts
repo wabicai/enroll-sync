@@ -5,8 +5,7 @@ import type { ApiResponse } from '@/types';
 // API配置 - 统一的环境控制
 const API_CONFIG = {
   MOCK: 'mock',
-  // LOCAL: 'http://localhost:8000',
-  // PRODUCTION: 'http://localhost:8000',
+  LOCAL: 'http://localhost:8000',
   PRODUCTION: 'https://chuangningpeixun.com'
 } as const;
 
@@ -14,7 +13,13 @@ const API_CONFIG = {
 const getCurrentMode = () => {
   const useMock = (import.meta as any).env?.VITE_USE_MOCK === 'true';
   if (useMock) return 'mock';
-  
+
+  // 优先使用 VITE_API_ENV 环境变量
+  const apiEnv = (import.meta as any).env?.VITE_API_ENV;
+  if (apiEnv === 'dev') return 'local';
+  if (apiEnv === 'prod') return 'production';
+
+  // 回退到 MODE 环境变量
   const mode = (import.meta as any).env?.MODE;
   return mode === 'production' ? 'production' : 'local';
 };

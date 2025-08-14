@@ -36,6 +36,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { ApprovalProgress } from "@/components/ApprovalProgress";
 
 // 状态映射
 const approvalStatusMap: Record<number, string> = {
@@ -150,7 +151,7 @@ export default function Approvals() {
     setCurrentPage(page);
   };
 
-  // 处理审批决策
+  // 处理审批决策 - 简化版本，后端状态机处理所有流转逻辑
   const handleApprovalDecision = async (
     instanceId: number,
     stepKey: string,
@@ -158,11 +159,18 @@ export default function Approvals() {
     reason?: string
   ) => {
     try {
-      await decideApprovalStep(instanceId, stepKey, approve, reason);
+      // 后端状态机会自动处理流转，返回更新后的完整状态
+      const result = await decideApprovalStep(instanceId, stepKey, approve, reason);
+
+      // 关闭弹窗
       setApprovalOpen(false);
-      loadApprovalData(); // 重新加载数据
+
+      // 重新加载数据以获取最新状态
+      await loadApprovalData();
+
     } catch (error) {
-      console.error("Failed to process approval:", error);
+      console.error("审批处理失败:", error);
+      // 这里可以添加错误提示
     }
   };
 
@@ -826,108 +834,93 @@ export default function Approvals() {
                     </div>
                   )}
 
-                  {/* 审批流程 */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">审批流程</h3>
-                    <div className="space-y-3">
-                      {steps.map((step: any, index: number) => {
-                        const isCurrentStep = index === inst.current_step_index;
-                        const stepStatus = stepStatusMap[step.status] || {
-                          label: "未知",
-                          variant: "secondary" as const,
-                        };
+                  {/* 审批流程 - 使用新的进度组件 */}
+                  <ApprovalProgress
+                    steps={steps}
+                    currentStepIndex={inst.current_step_index}
+                  />
 
-                        return (
-                          <div
-                            key={step.id}
-                            className={`flex items-center gap-3 p-3 rounded-lg border ${
-                              isCurrentStep
-                                ? "border-blue-500 bg-blue-50 dark:bg-blue-950"
-                                : "border-gray-200"
-                            }`}
-                          >
-                            <Badge
-                              variant={
-                                isCurrentStep ? "default" : stepStatus.variant
-                              }
-                            >
-                              {stepNameMap[step.step_key] || step.step_key}
-                            </Badge>
-                            <Badge variant={stepStatus.variant}>
-                              {stepStatus.label}
-                            </Badge>
-                            {step.auditor_name && (
-                              <span className="text-sm text-muted-foreground">
-                                审批人: {step.auditor_name}
-                              </span>
-                            )}
-                            {step.audit_time && (
-                              <span className="text-sm text-muted-foreground">
-                                {formatTime(step.audit_time)}
-                              </span>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
+
 
                   {/* 审批操作 */}
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold">审批操作</h3>
-                    {inst.status === 2 &&
-                      current &&
-                      current.status === 1 &&
-                      canApproveStep(current.step_key) && (
-                        <div className="flex gap-2">
-                          <Button
-                            onClick={() =>
-                              handleApprovalDecision(
-                                inst.id,
-                                current.step_key,
-                                true
-                              )
-                            }
-                            className="flex-1"
-                          >
-                            通过 (
-                            {stepNameMap[current.step_key] || current.step_key})
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            onClick={() =>
-                              handleApprovalDecision(
-                                inst.id,
-                                current.step_key,
-                                false,
-                                "拒绝"
-                              )
-                            }
-                            className="flex-1"
-                          >
-                            拒绝 (
-                            {stepNameMap[current.step_key] || current.step_key})
-                          </Button>
-                        </div>
+                    {(() => {
+                      // 简化逻辑：后端状态机会处理所有流转，前端只需要找到当前可审批的步骤
+                      const getCurrentApprovalStep = () => {
+                        // 查找第一个待审步骤
+                        return steps.find(step => step.status === 1);
+                      };
+
+                      const currentApprovalStep = getCurrentApprovalStep();
+
+                      return inst.status === 2 &&
+                             currentApprovalStep &&
+                             canApproveStep(currentApprovalStep.step_key);
+                    })() && (
+                        (() => {
+                          const currentApprovalStep = steps.find(step => step.status === 1);
+
+                          return (
+                            <div className="flex gap-2">
+                              <Button
+                                onClick={() =>
+                                  handleApprovalDecision(
+                                    inst.id,
+                                    currentApprovalStep.step_key,
+                                    true
+                                  )
+                                }
+                                className="flex-1"
+                              >
+                                通过 (
+                                {stepNameMap[currentApprovalStep.step_key] || currentApprovalStep.step_key})
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                onClick={() =>
+                                  handleApprovalDecision(
+                                    inst.id,
+                                    currentApprovalStep.step_key,
+                                    false,
+                                    "拒绝"
+                                  )
+                                }
+                                className="flex-1"
+                              >
+                                拒绝 (
+                                {stepNameMap[currentApprovalStep.step_key] || currentApprovalStep.step_key})
+                              </Button>
+                            </div>
+                          );
+                        })()
                       )}
-                    {inst.status === 2 &&
-                      current &&
-                      current.status === 1 &&
-                      !canApproveStep(current.step_key) && (
+                    {(() => {
+                      const currentApprovalStep = steps.find(step => step.status === 1);
+
+                      return inst.status === 2 &&
+                             currentApprovalStep &&
+                             !canApproveStep(currentApprovalStep.step_key) && (
                         <div className="text-sm text-orange-600 bg-orange-50 dark:text-orange-400 dark:bg-orange-950 p-3 rounded-lg">
                           当前步骤需要{" "}
-                          {stepNameMap[current.step_key] || current.step_key}{" "}
+                          {stepNameMap[currentApprovalStep.step_key] || currentApprovalStep.step_key}{" "}
                           权限才能审批
                         </div>
-                      )}
-                    {current && current.status !== 1 && (
-                      <div className="text-sm text-muted-foreground bg-muted p-3 rounded-lg">
-                        当前步骤已处理，状态：
-                        {stepStatusMap[current.status]?.label || "未知"}
-                        {current.auditor_name &&
-                          ` (审批人: ${current.auditor_name})`}
-                      </div>
-                    )}
+                      );
+                    })()}
+                    {(() => {
+                      const currentApprovalStep = steps.find(step => step.status === 1);
+
+                      // 如果没有待审步骤，但流程还在进行中，显示等待状态
+                      if (!currentApprovalStep && inst.status === 2) {
+                        return (
+                          <div className="text-sm text-muted-foreground bg-muted p-3 rounded-lg">
+                            所有步骤已处理，等待系统更新状态...
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
                     {inst.status === 3 && (
                       <div className="text-sm text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-950 p-3 rounded-lg">
                         审批已完成，状态：已通过
