@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAppStore } from '@/store/useAppStore';
-import { mockUsers } from '@/mock';
+import { register } from '@/lib/api';
+import { useNavigate, Link } from 'react-router-dom';
 
 const identityOptions = [
   { value: 'full_time', label: '全职招生' },
@@ -17,6 +18,7 @@ const identityOptions = [
 
 export default function AuthRegister() {
   const { setUser } = useAppStore();
+  const navigate = useNavigate();
   const [form, setForm] = useState({
     email: '',
     password: '',
@@ -34,6 +36,7 @@ export default function AuthRegister() {
     setLoading(true);
     setError('');
 
+<<<<<<< HEAD
     try {
       // 简单字段校验（与后台规范一致的最小子集）
       if (!form.email || !form.password || !form.name || !form.id_card || !form.identity_type) {
@@ -89,6 +92,30 @@ export default function AuthRegister() {
       
     } catch (error: any) {
       setError(error.message || '注册失败，请重试');
+=======
+    // 简单字段校验
+    if (!form.email || !form.password || !form.name) {
+      setError('请完整填写必填信息');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const result = await register({
+        name: form.name,
+        email: form.email.toLowerCase(),
+        password: form.password,
+      });
+
+      // 注册成功，跳转到登录页面
+      navigate('/login', {
+        state: {
+          message: '注册成功！请使用您的邮箱和密码登录。'
+        }
+      });
+    } catch (err: any) {
+      setError(err?.message || '注册失败，请重试');
+>>>>>>> feature/local-changes
     } finally {
       setLoading(false);
     }
@@ -146,7 +173,10 @@ export default function AuthRegister() {
               {loading ? '提交中...' : '注册并提交审批'}
             </Button>
             <div className="text-sm text-center text-muted-foreground">
-              已有账号？<a className="text-primary" href="/login">去登录</a>
+              已有账号？
+              <Link to="/login" className="text-primary hover:underline ml-1">
+                去登录
+              </Link>
             </div>
           </form>
         </CardContent>

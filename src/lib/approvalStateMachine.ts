@@ -3,7 +3,51 @@
  * 提供简洁的API接口，隐藏复杂的状态机逻辑
  */
 
-import { httpGet, httpPost } from './api';
+// 使用统一的 apiRequest 函数
+const apiRequest = async (endpoint: string, options: RequestInit = {}): Promise<any> => {
+  const { getCurrentMode, API_CONFIG } = await import('@/hooks/useApi');
+  const { getAuthState } = await import('@/lib/auth');
+
+  const mode = getCurrentMode();
+  if (mode === 'mock') {
+    return { success: true, data: [], message: 'Mock data' };
+  }
+
+  const baseUrl = mode === 'local' ? API_CONFIG.LOCAL : API_CONFIG.PRODUCTION;
+  const authState = getAuthState();
+  const token = authState?.accessToken;
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...options.headers,
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${baseUrl}${endpoint}`, {
+    ...options,
+    headers,
+  });
+
+  if (!response.ok) {
+    throw new Error(`API request failed: ${response.status}`);
+  }
+
+  return await response.json();
+};
+
+const httpGet = async <T>(path: string): Promise<T> => {
+  return await apiRequest(path);
+};
+
+const httpPost = async <T>(path: string, body?: any): Promise<T> => {
+  return await apiRequest(path, {
+    method: 'POST',
+    body: body ? JSON.stringify(body) : undefined,
+  });
+};
 
 // 状态枚举
 export enum InstanceStatus {

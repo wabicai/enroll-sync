@@ -1,48 +1,28 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Search, Plus, Filter, MoreHorizontal, Check, X, DollarSign, Gift, Star, TrendingUp, Calendar } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import type { Reward, RewardType } from '@/types';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Plus, Trophy, DollarSign, Users, Clock } from 'lucide-react';
+import { fetchRewards, createReward } from '@/lib/api';
+import type { Reward } from '@/types';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { fetchRewards, createReward, updateReward, deleteReward, applyReward } from '@/lib/api';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-const typeLabels = {
-  recruitment: '招生奖励',
-  development: '发展奖励',
-  performance: '绩效奖励',
-  special: '特殊奖励',
-};
-
-// backend mapping reminder: 1=pending(AVAILABLE/APPLYING), 3=approved, 4=rejected, 5=paid
 const statusLabels = {
   pending: '待审核',
   approved: '已审核',
-  rejected: '已拒绝',
   paid: '已发放',
+  rejected: '已拒绝'
+};
+
+const typeLabels = {
+  recruitment: '招生奖励',
+  performance: '业绩奖励',
+  special: '特别奖励'
 };
 
 export default function Rewards() {
@@ -57,75 +37,90 @@ export default function Rewards() {
     (async () => {
       try {
         setLoading(true);
-        const list = await fetchRewards();
-        if (mounted) setRewards(list);
-      } catch (e: any) {
-        setError(e?.message || '加载失败');
+        const data = await fetchRewards();
+        if (mounted) {
+          setRewards(data || []);
+        }
+      } catch (err) {
+        if (mounted) {
+          console.error('Failed to fetch rewards:', err);
+          setError('获取奖励数据失败');
+          setRewards([]);
+        }
       } finally {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     })();
     return () => { mounted = false; };
   }, []);
-  const [form, setForm] = useState<Partial<Reward>>({ type: 'recruitment', status: 'pending', amount: 0 });
-  const [searchTerm, setSearchTerm] = useState('');
-  const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [fromDate, setFromDate] = useState<string>('');
-  const [toDate, setToDate] = useState<string>('');
 
-  const filteredRewards = rewards.filter(reward => {
-    const matchesSearch = reward.userName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         reward.reason?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = typeFilter === 'all' || reward.type === typeFilter;
-    const matchesStatus = statusFilter === 'all' || reward.status === statusFilter;
-    const created = new Date(reward.createdAt).toISOString().slice(0,10);
-    const matchesFrom = !fromDate || created >= fromDate;
-    const matchesTo = !toDate || created <= toDate;
-    return matchesSearch && matchesType && matchesStatus && matchesFrom && matchesTo;
+  // 添加奖励
+  const [addForm, setAddForm] = useState({
+    student_enrollment_id: '',
+    recruiter_user_id: '',
+    total_fee: '',
+    payment_type: '1' as '1' | '2',
+    paid_amount: '',
+    payment_date: '',
+    reward_amount: '',
+    tags: ''
   });
 
-  const handleApprove = async (_rewardId: string) => {
-    alert('奖励审批已迁移至统一审批中心，请通过“审批中心”处理。');
-  };
+  const handleAddReward = async () => {
+    if (!addForm.student_enrollment_id || !addForm.recruiter_user_id || !addForm.total_fee) {
+      alert('请填写必填字段');
+      return;
+    }
 
-  const handleReject = async (_rewardId: string) => {
-    alert('奖励审批已迁移至统一审批中心，请通过“审批中心”处理。');
-  };
-
-  const handlePay = async (_rewardId: string) => {
-    alert('奖励发放请使用财务批量发放或对应后端接口。');
+    try {
+      const newReward = await createReward({
+        student_enrollment_id: Number(addForm.student_enrollment_id),
+        recruiter_user_id: Number(addForm.recruiter_user_id),
+        total_fee: Number(addForm.total_fee),
+        payment_type: Number(addForm.payment_type) as 1 | 2,
+        paid_amount: Number(addForm.paid_amount),
+        payment_date: addForm.payment_date,
+        reward_amount: addForm.reward_amount ? Number(addForm.reward_amount) : undefined,
+        tags: addForm.tags || undefined
+      });
+      
+      setRewards(prev => [newReward, ...prev]);
+      setOpenAdd(false);
+      setAddForm({
+        student_enrollment_id: '',
+        recruiter_user_id: '',
+        total_fee: '',
+        payment_type: '1',
+        paid_amount: '',
+        payment_date: '',
+        reward_amount: '',
+        tags: ''
+      });
+    } catch (error) {
+      console.error('创建奖励失败:', error);
+      alert('创建奖励失败，请重试');
+    }
   };
 
   const getStatusVariant = (status: string) => {
     switch (status) {
-      case 'approved': return 'default';
-      case 'pending': return 'secondary';
+      case 'paid': return 'default';
+      case 'approved': return 'secondary';  
+      case 'pending': return 'outline';
       case 'rejected': return 'destructive';
-      case 'paid': return 'outline';
       default: return 'outline';
     }
   };
 
-  const getTypeIcon = (type: RewardType) => {
-    switch (type) {
-      case 'recruitment': return DollarSign;
-      case 'development': return TrendingUp;
-      case 'performance': return Star;
-      case 'special': return Gift;
-      default: return DollarSign;
-    }
-  };
+  if (loading) {
+    return <div className="flex items-center justify-center h-64">加载中...</div>;
+  }
 
-  const getTypeColor = (type: RewardType) => {
-    switch (type) {
-      case 'recruitment': return 'text-green-600';
-      case 'development': return 'text-blue-600';
-      case 'performance': return 'text-purple-600';
-      case 'special': return 'text-orange-600';
-      default: return 'text-gray-600';
-    }
-  };
+  if (error) {
+    return <div className="flex items-center justify-center h-64 text-red-500">{error}</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -133,9 +128,7 @@ export default function Rewards() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">奖励管理</h1>
-          <p className="text-muted-foreground">
-            管理奖励申请、审核和发放流程
-          </p>
+          <p className="text-muted-foreground">管理奖励申请、审核和发放流程</p>
         </div>
         <Dialog open={openAdd} onOpenChange={setOpenAdd}>
           <DialogTrigger asChild>
@@ -144,69 +137,91 @@ export default function Rewards() {
               添加奖励
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>添加奖励</DialogTitle>
             </DialogHeader>
-            <div className="grid gap-3">
-              <div className="grid grid-cols-3 gap-3">
+            <div className="grid gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label>申请人ID</Label>
-                  <Input value={form.userId ?? ''} onChange={(e) => setForm({ ...form, userId: e.target.value })} />
+                  <Label>学员报名ID *</Label>
+                  <Input 
+                    value={addForm.student_enrollment_id} 
+                    onChange={(e) => setAddForm({...addForm, student_enrollment_id: e.target.value})} 
+                    placeholder="学员报名ID"
+                  />
                 </div>
-                <div className="col-span-2">
-                  <Label>申请人姓名</Label>
-                  <Input value={form.userName ?? ''} onChange={(e) => setForm({ ...form, userName: e.target.value })} />
+                <div>
+                  <Label>招生人员ID *</Label>
+                  <Input 
+                    value={addForm.recruiter_user_id} 
+                    onChange={(e) => setAddForm({...addForm, recruiter_user_id: e.target.value})} 
+                    placeholder="招生人员ID"
+                  />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label>奖励类型</Label>
-                  <Select value={(form.type as string) || 'recruitment'} onValueChange={(v) => setForm({ ...form, type: v as RewardType })}>
+                  <Label>总费用 *</Label>
+                  <Input 
+                    type="number" 
+                    value={addForm.total_fee} 
+                    onChange={(e) => setAddForm({...addForm, total_fee: e.target.value})} 
+                    placeholder="总费用"
+                  />
+                </div>
+                <div>
+                  <Label>支付方式 *</Label>
+                  <Select value={addForm.payment_type} onValueChange={(value) => setAddForm({...addForm, payment_type: value as '1' | '2'})}>
                     <SelectTrigger>
-                      <SelectValue placeholder="类型" />
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {Object.entries(typeLabels).map(([value, label]) => (
-                        <SelectItem key={value} value={value}>{label}</SelectItem>
-                      ))}
+                      <SelectItem value="1">全款</SelectItem>
+                      <SelectItem value="2">分期</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label>金额(¥)</Label>
-                  <Input type="number" value={form.amount ?? 0} onChange={(e) => setForm({ ...form, amount: Number(e.target.value) })} />
+                  <Label>已付金额</Label>
+                  <Input 
+                    type="number" 
+                    value={addForm.paid_amount} 
+                    onChange={(e) => setAddForm({...addForm, paid_amount: e.target.value})} 
+                    placeholder="已付金额"
+                  />
+                </div>
+                <div>
+                  <Label>奖励金额</Label>
+                  <Input 
+                    type="number" 
+                    value={addForm.reward_amount} 
+                    onChange={(e) => setAddForm({...addForm, reward_amount: e.target.value})} 
+                    placeholder="奖励金额"
+                  />
                 </div>
               </div>
               <div>
-                <Label>奖励原因</Label>
-                <Input value={form.reason ?? ''} onChange={(e) => setForm({ ...form, reason: e.target.value })} />
+                <Label>支付日期</Label>
+                <Input 
+                  type="date" 
+                  value={addForm.payment_date} 
+                  onChange={(e) => setAddForm({...addForm, payment_date: e.target.value})} 
+                />
+              </div>
+              <div>
+                <Label>标签</Label>
+                <Input 
+                  value={addForm.tags} 
+                  onChange={(e) => setAddForm({...addForm, tags: e.target.value})} 
+                  placeholder="标签（可选）"
+                />
               </div>
             </div>
             <DialogFooter>
-              <Button onClick={async () => {
-                // For real backend: need student_enrollment_id, recruiter_user_id, amounts, etc.
-                const enrollmentIdStr = prompt('关联报考记录ID (student_enrollment_id)');
-                const recruiterIdStr = prompt('招生员用户ID (recruiter_user_id)');
-                const totalFeeStr = prompt('总学费(¥)', '2000');
-                const paidAmountStr = prompt('已付金额(¥)', '2000');
-                const paymentDateStr = prompt('缴费日期(YYYY-MM-DD)', new Date().toISOString().slice(0,10));
-                const rewardAmountStr = prompt('奖励金额(¥)', String(form.amount ?? 0));
-                if (!enrollmentIdStr || !recruiterIdStr || !totalFeeStr || !paidAmountStr || !paymentDateStr) return;
-                const created = await createReward({
-                  student_enrollment_id: Number(enrollmentIdStr),
-                  recruiter_user_id: Number(recruiterIdStr),
-                  total_fee: Number(totalFeeStr),
-                  payment_type: 1,
-                  paid_amount: Number(paidAmountStr),
-                  payment_date: paymentDateStr,
-                  reward_amount: Number(rewardAmountStr || 0),
-                  tags: String(form.reason ?? '')
-                });
-                setRewards(prev => [created, ...prev]);
-                setOpenAdd(false);
-                setForm({ type: 'recruitment', status: 'pending', amount: 0 });
-              }}>保存</Button>
+              <Button onClick={handleAddReward}>创建奖励</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -216,22 +231,34 @@ export default function Rewards() {
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">奖励总额</CardTitle>
-            <DollarSign className="h-4 w-4 text-green-600" />
+            <CardTitle className="text-sm font-medium">总奖励数</CardTitle>
+            <Trophy className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{rewards.length}</div>
+            <p className="text-xs text-muted-foreground">
+              待审核 {rewards.filter(r => r.status === 'pending').length} 个
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">已发放</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ¥{rewards.reduce((sum, r) => sum + r.amount, 0).toLocaleString()}
+              {rewards.filter(r => r.status === 'paid').length}
             </div>
             <p className="text-xs text-muted-foreground">
-              本月累计奖励
+              已完成发放的奖励
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">待审核</CardTitle>
-            <Check className="h-4 w-4 text-blue-600" />
+            <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
@@ -244,259 +271,181 @@ export default function Rewards() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">已发放</CardTitle>
-            <Gift className="h-4 w-4 text-purple-600" />
+            <CardTitle className="text-sm font-medium">总金额</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {rewards.filter(r => r.status === 'paid').length}
+              ¥{rewards.filter(r => r.status === 'paid').reduce((sum, r) => sum + r.amount, 0).toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
-              本月已发放奖励
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">平均奖励</CardTitle>
-            <Star className="h-4 w-4 text-orange-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              ¥{rewards.length > 0 ? Math.round(rewards.reduce((sum, r) => sum + r.amount, 0) / rewards.length) : 0}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              单笔奖励均值
+              已发放总金额
             </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* 筛选和搜索 */}
-      <Card>
-        <CardHeader>
-          <CardTitle>奖励列表</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="flex flex-1 gap-4">
-              <div className="relative flex-1 max-w-sm">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="搜索奖励..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-              <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger className="w-32">
-                  <SelectValue placeholder="类型" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">全部类型</SelectItem>
-                  {Object.entries(typeLabels).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>{label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-32">
-                  <SelectValue placeholder="状态" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">全部状态</SelectItem>
-                  {Object.entries(statusLabels).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>{label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <div className="flex items-center gap-2">
-                <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-40" />
-                <span className="text-muted-foreground text-sm">至</span>
-                <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-40" />
-              </div>
-            </div>
-            <Button variant="outline">
-              <Filter className="mr-2 h-4 w-4" />
-              更多筛选
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {/* 奖励列表 */}
+      <Tabs defaultValue="all" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="all">全部奖励</TabsTrigger>
+          <TabsTrigger value="pending">待审核</TabsTrigger>
+          <TabsTrigger value="approved">已审核</TabsTrigger>
+          <TabsTrigger value="paid">已发放</TabsTrigger>
+        </TabsList>
 
-      {/* 奖励表格 */}
-      <Card>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>申请人</TableHead>
-                <TableHead>奖励类型</TableHead>
-                <TableHead>奖励金额</TableHead>
-                <TableHead>奖励原因</TableHead>
-                <TableHead>状态</TableHead>
-                <TableHead>申请时间</TableHead>
-                <TableHead>审核信息</TableHead>
-                <TableHead className="text-right">操作</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredRewards.map((reward) => {
-                const TypeIcon = getTypeIcon(reward.type);
-                
-                return (
-                  <TableRow key={reward.id}>
-                    <TableCell>
-                      <div className="font-medium">{reward.userName}</div>
-                      <div className="text-sm text-muted-foreground">
-                        ID: {reward.userId}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <TypeIcon className={`h-4 w-4 ${getTypeColor(reward.type)}`} />
-                        <Badge variant="outline">
-                          {typeLabels[reward.type]}
-                        </Badge>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-medium text-green-600">
-                        ¥{reward.amount.toLocaleString()}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="max-w-xs truncate" title={reward.reason}>
-                        {reward.reason}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getStatusVariant(reward.status)}>
-                        {statusLabels[reward.status]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {new Date(reward.createdAt).toLocaleDateString('zh-CN')}
-                    </TableCell>
-                    <TableCell>
-                      {reward.approvedBy ? (
-                        <div className="text-sm">
-                          <div>已审核</div>
-                          <div className="text-xs text-muted-foreground">
-                            {reward.approvedAt && new Date(reward.approvedAt).toLocaleDateString('zh-CN')}
-                          </div>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        {reward.status === 'pending' && (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={async () => {
-                                const month = prompt('申请月份(YYYY-MM)');
-                                const reason = prompt('申请原因', '按规则发放') || '';
-                                if (!month) return;
-                                await applyReward(reward.id, month, reason);
-                                alert('已提交申请，等待审批');
-                              }}
-                            >
-                              提交申请
-                            </Button>
-                          </>
-                        )}
-                        {reward.status === 'approved' && (
-                          <span className="text-muted-foreground text-sm">待财务发放</span>
-                        )}
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={async () => {
-                            const amount = prompt('调整金额(¥)', String(reward.amount));
-                            if (amount == null) return;
-                            const reason = prompt('调整原因', reward.reason ?? '') ?? reward.reason ?? '';
-                            const updated = await updateReward(reward.id, { amount: Number(amount), reason });
-                            if (updated) setRewards(prev => prev.map(r => r.id === reward.id ? updated : r));
-                          }}>编辑奖励</DropdownMenuItem>
-                          <DropdownMenuItem onClick={async () => {
-                            const ok = confirm('确认删除奖励记录？');
-                            if (!ok) return;
-                            const success = await deleteReward(reward.id);
-                            if (success) setRewards(prev => prev.filter(r => r.id !== reward.id));
-                          }} className="text-destructive">
-                            删除奖励
-                          </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </TableCell>
+        <TabsContent value="all">
+          <Card>
+            <CardHeader>
+              <CardTitle>全部奖励记录</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>申请人</TableHead>
+                    <TableHead>类型</TableHead>
+                    <TableHead>金额</TableHead>
+                    <TableHead>状态</TableHead>
+                    <TableHead>申请时间</TableHead>
                   </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-          
-          {filteredRewards.length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">未找到匹配的奖励记录</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {rewards.map(reward => (
+                    <TableRow key={reward.id}>
+                      <TableCell className="font-medium">{reward.userName}</TableCell>
+                      <TableCell>{typeLabels[reward.type] || reward.type}</TableCell>
+                      <TableCell>¥{reward.amount.toLocaleString()}</TableCell>
+                      <TableCell>
+                        <Badge variant={getStatusVariant(reward.status)}>
+                          {statusLabels[reward.status] || reward.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{new Date(reward.createdAt).toLocaleDateString('zh-CN')}</TableCell>
+                    </TableRow>
+                  ))}
+                  {rewards.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center text-muted-foreground">暂无奖励记录</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      {/* 发放记录（已发放） */}
-      <Card>
-        <CardHeader>
-          <CardTitle>发放记录</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex justify-end mb-2">
-            <Button variant="outline" onClick={() => {
-              const sp = new URLSearchParams();
-              if (typeFilter !== 'all') sp.set('type', typeFilter);
-              if (fromDate) sp.set('from', fromDate);
-              if (toDate) sp.set('to', toDate);
-              window.location.href = `/exports?${sp.toString()}`;
-            }}>导出奖励</Button>
-          </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>申请人</TableHead>
-                <TableHead>类型</TableHead>
-                <TableHead>金额</TableHead>
-                <TableHead>原因</TableHead>
-                <TableHead>发放时间</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rewards.filter(r => r.status === 'paid').map(r => (
-                <TableRow key={`paid_${r.id}`}>
-                  <TableCell>{r.userName}</TableCell>
-                  <TableCell>{typeLabels[r.type]}</TableCell>
-                  <TableCell>¥{r.amount.toLocaleString()}</TableCell>
-                  <TableCell className="max-w-xs truncate" title={r.reason}>{r.reason}</TableCell>
-                  <TableCell>{new Date(r.updatedAt || r.createdAt).toLocaleDateString('zh-CN')}</TableCell>
-                </TableRow>
-              ))}
-              {rewards.filter(r => r.status === 'paid').length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground">暂无发放记录</TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+        <TabsContent value="pending">
+          <Card>
+            <CardHeader>
+              <CardTitle>待审核奖励</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>申请人</TableHead>
+                    <TableHead>类型</TableHead>
+                    <TableHead>金额</TableHead>
+                    <TableHead>原因</TableHead>
+                    <TableHead>申请时间</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {rewards.filter(r => r.status === 'pending').map(r => (
+                    <TableRow key={`pending_${r.id}`}>
+                      <TableCell>{r.userName}</TableCell>
+                      <TableCell>{typeLabels[r.type]}</TableCell>
+                      <TableCell>¥{r.amount.toLocaleString()}</TableCell>
+                      <TableCell className="max-w-xs truncate" title={r.reason}>{r.reason}</TableCell>
+                      <TableCell>{new Date(r.createdAt).toLocaleDateString('zh-CN')}</TableCell>
+                    </TableRow>
+                  ))}
+                  {rewards.filter(r => r.status === 'pending').length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center text-muted-foreground">暂无待审核记录</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="approved">
+          <Card>
+            <CardHeader>
+              <CardTitle>已审核奖励</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>申请人</TableHead>
+                    <TableHead>类型</TableHead>
+                    <TableHead>金额</TableHead>
+                    <TableHead>原因</TableHead>
+                    <TableHead>审核时间</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {rewards.filter(r => r.status === 'approved').map(r => (
+                    <TableRow key={`approved_${r.id}`}>
+                      <TableCell>{r.userName}</TableCell>
+                      <TableCell>{typeLabels[r.type]}</TableCell>
+                      <TableCell>¥{r.amount.toLocaleString()}</TableCell>
+                      <TableCell className="max-w-xs truncate" title={r.reason}>{r.reason}</TableCell>
+                      <TableCell>{new Date(r.updatedAt || r.createdAt).toLocaleDateString('zh-CN')}</TableCell>
+                    </TableRow>
+                  ))}
+                  {rewards.filter(r => r.status === 'approved').length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center text-muted-foreground">暂无已审核记录</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="paid">
+          <Card>
+            <CardHeader>
+              <CardTitle>已发放奖励</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>申请人</TableHead>
+                    <TableHead>类型</TableHead>
+                    <TableHead>金额</TableHead>
+                    <TableHead>原因</TableHead>
+                    <TableHead>发放时间</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {rewards.filter(r => r.status === 'paid').map(r => (
+                    <TableRow key={`paid_${r.id}`}>
+                      <TableCell>{r.userName}</TableCell>
+                      <TableCell>{typeLabels[r.type]}</TableCell>
+                      <TableCell>¥{r.amount.toLocaleString()}</TableCell>
+                      <TableCell className="max-w-xs truncate" title={r.reason}>{r.reason}</TableCell>
+                      <TableCell>{new Date(r.updatedAt || r.createdAt).toLocaleDateString('zh-CN')}</TableCell>
+                    </TableRow>
+                  ))}
+                  {rewards.filter(r => r.status === 'paid').length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center text-muted-foreground">暂无发放记录</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
