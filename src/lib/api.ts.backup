@@ -451,7 +451,7 @@ export const deleteUser = async (id: string): Promise<void> => {
 
 // 审批管理
 export const fetchApprovals = async (): Promise<Approval[]> => {
-  const result = await apiRequest('/approvals/all');
+  const result = await apiRequest('/approvals');
   return result.data || [];
 };
 

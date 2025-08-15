@@ -1,151 +1,123 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Progress } from '@/components/ui/progress';
-import { Search, Plus, Filter, MoreHorizontal, Eye, Edit, Trash2, Phone } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Search, Plus, Filter, MoreHorizontal, Check, X, UserCheck, UserX } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { fetchStudents, setStudentStatus, updateStudent, createStudent } from '@/lib/api';
-import type { Student, StudentCategory } from '@/types';
+import { fetchStudents, createStudent, setStudentStatus, updateStudent } from '@/lib/api';
+import type { Student } from '@/types';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
-import { useEffect } from 'react';
-
-const categoryLabels = {
-  safety_officer: '安全员',
-  electrician: '电工',
-  welder: '焊工',
-  crane_operator: '起重工',
-  other: '其他',
-};
 
 const statusLabels = {
-  pending: '待审核',
-  approved: '已审核',
-  rejected: '已拒绝',
+  enrolled: '已报名',
+  studying: '在读',
   graduated: '已毕业',
+  dropped: '退学',
+  suspended: '休学'
 };
 
-const paymentLabels = {
-  unpaid: '未缴费',
-  partial: '部分缴费',
-  paid: '已缴费',
-};
+const statusVariants = {
+  enrolled: 'secondary',
+  studying: 'default', 
+  graduated: 'default',
+  dropped: 'destructive',
+  suspended: 'outline'
+} as const;
 
 export default function Students() {
   const [students, setStudents] = useState<Student[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [paymentFilter, setPaymentFilter] = useState<string>('all');
   const [openAdd, setOpenAdd] = useState(false);
-  const [form, setForm] = useState<Partial<Student>>({ status: 'pending', paymentStatus: 'unpaid', amount: 0, paidAmount: 0, tags: [] });
-  const [page, setPage] = useState(1);
-  const pageSize = 10;
   const [detailOpen, setDetailOpen] = useState(false);
   const [selected, setSelected] = useState<Student | null>(null);
-  const [sortKey, setSortKey] = useState<'createdAt' | 'name' | 'amount' | 'paidAmount'>('createdAt');
-
-  const filteredStudents = students
-    .filter(student => {
-    const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         student.phone.includes(searchTerm) ||
-                         student.idCard.includes(searchTerm) ||
-                         student.recruiterName.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = categoryFilter === 'all' || student.category === categoryFilter;
-    const matchesStatus = statusFilter === 'all' || student.status === statusFilter;
-    const matchesPayment = paymentFilter === 'all' || student.paymentStatus === paymentFilter;
-    
-    return matchesSearch && matchesCategory && matchesStatus && matchesPayment;
-    })
-    .sort((a, b) => {
-      switch (sortKey) {
-        case 'name':
-          return a.name.localeCompare(b.name);
-        case 'amount':
-          return b.amount - a.amount;
-        case 'paidAmount':
-          return b.paidAmount - a.paidAmount;
-        default:
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  const [loading, setLoading] = useState(false);
+  
+  // 初始化从后端拉取学员列表
+  useEffect(() => {
+    const loadStudents = async () => {
+      try {
+        setLoading(true);
+        const data = await fetchStudents();
+        setStudents(data || []);
+      } catch (error) {
+        console.error('Failed to fetch students:', error);
+        setStudents([]);
+      } finally {
+        setLoading(false);
       }
-    });
-  const totalPages = Math.max(1, Math.ceil(filteredStudents.length / pageSize));
-  const paginated = filteredStudents.slice((page - 1) * pageSize, page * pageSize);
-
-  // URL 持久化 - 初始化
-  useEffect(() => {
-    const sp = new URLSearchParams(window.location.search);
-    setSearchTerm(sp.get('q') || '');
-    setCategoryFilter(sp.get('category') || 'all');
-    setStatusFilter(sp.get('status') || 'all');
-    setPaymentFilter(sp.get('payment') || 'all');
-    setSortKey((sp.get('sort') as any) || 'createdAt');
-    setPage(Number(sp.get('page') || '1'));
+    };
+    loadStudents();
   }, []);
 
-  // 首次加载真实/模拟学员列表
-  useEffect(() => {
-    fetchStudents().then(setStudents).catch(() => setStudents([]));
-  }, []);
+  const [addForm, setAddForm] = useState<Partial<Student>>({
+    status: 'enrolled',
+    paymentStatus: 'unpaid'
+  });
 
-  // URL 持久化 - 写入
-  useEffect(() => {
-    const sp = new URLSearchParams();
-    if (searchTerm) sp.set('q', searchTerm);
-    if (categoryFilter !== 'all') sp.set('category', categoryFilter);
-    if (statusFilter !== 'all') sp.set('status', statusFilter);
-    if (paymentFilter !== 'all') sp.set('payment', paymentFilter);
-    if (sortKey !== 'createdAt') sp.set('sort', sortKey);
-    if (page !== 1) sp.set('page', String(page));
-    const url = `${location.pathname}?${sp.toString()}`;
-    window.history.replaceState({}, '', url);
-  }, [searchTerm, categoryFilter, statusFilter, paymentFilter, sortKey, page]);
+  const filteredStudents = students.filter(student => {
+    const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         student.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         student.phone.includes(searchTerm);
+    const matchesStatus = statusFilter === 'all' || student.status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
 
-  const getStatusVariant = (status: string) => {
-    switch (status) {
-      case 'approved': return 'default';
-      case 'pending': return 'secondary';
-      case 'rejected': return 'destructive';
-      case 'graduated': return 'outline';
-      default: return 'outline';
+  const handleStatusChange = async (studentId: string, newStatus: Student['status']) => {
+    try {
+      const updated = await setStudentStatus(studentId, newStatus);
+      if (updated) {
+        setStudents(prev => prev.map(s => s.id === studentId ? updated : s));
+      }
+    } catch (error) {
+      console.error('Failed to update status:', error);
     }
   };
 
-  const getPaymentVariant = (status: string) => {
-    switch (status) {
-      case 'paid': return 'default';
-      case 'partial': return 'secondary';
-      case 'unpaid': return 'destructive';
-      default: return 'outline';
+  const handleAddStudent = async () => {
+    if (!addForm.name || !addForm.email || !addForm.phone) {
+      alert('请填写必填字段');
+      return;
+    }
+
+    try {
+      const created = await createStudent({
+        name: addForm.name!,
+        email: addForm.email!,
+        phone: addForm.phone!,
+        course: addForm.course || '',
+        status: (addForm.status as Student['status']) || 'enrolled',
+        paymentStatus: (addForm.paymentStatus as Student['paymentStatus']) || 'unpaid',
+        enrollmentDate: addForm.enrollmentDate || new Date().toISOString().split('T')[0],
+        tuitionFee: addForm.tuitionFee || 0,
+        paidAmount: addForm.paidAmount || 0,
+        avatar: addForm.avatar,
+        idCard: addForm.idCard
+      } as Omit<Student, 'id' | 'createdAt' | 'updatedAt'>);
+      
+      setStudents(prev => [created, ...prev]);
+      setOpenAdd(false);
+      setAddForm({ status: 'enrolled', paymentStatus: 'unpaid' });
+    } catch (error) {
+      console.error('创建学员失败:', error);
+      alert('创建学员失败，请重试');
     }
   };
 
-  const getPaymentProgress = (student: Student) => {
-    return (student.paidAmount / student.amount) * 100;
-  };
+  if (loading) {
+    return <div className="flex items-center justify-center h-64">加载中...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -153,9 +125,7 @@ export default function Students() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">学员管理</h1>
-          <p className="text-muted-foreground">
-            管理学员信息、审核状态和缴费情况
-          </p>
+          <p className="text-muted-foreground">管理学员信息、学习状态和缴费情况</p>
         </div>
         <Dialog open={openAdd} onOpenChange={setOpenAdd}>
           <DialogTrigger asChild>
@@ -171,56 +141,84 @@ export default function Students() {
             <div className="grid gap-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label>姓名</Label>
-                  <Input value={form.name ?? ''} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                  <Label>姓名 *</Label>
+                  <Input 
+                    value={addForm.name || ''} 
+                    onChange={(e) => setAddForm({ ...addForm, name: e.target.value })} 
+                    placeholder="学员姓名"
+                  />
                 </div>
                 <div>
-                  <Label>手机号</Label>
-                  <Input value={form.phone ?? ''} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                  <Label>手机号 *</Label>
+                  <Input 
+                    value={addForm.phone || ''} 
+                    onChange={(e) => setAddForm({ ...addForm, phone: e.target.value })} 
+                    placeholder="手机号码"
+                  />
                 </div>
               </div>
               <div>
-                <Label>身份证号</Label>
-                <Input value={form.idCard ?? ''} onChange={(e) => setForm({ ...form, idCard: e.target.value })} />
+                <Label>邮箱 *</Label>
+                <Input 
+                  value={addForm.email || ''} 
+                  onChange={(e) => setAddForm({ ...addForm, email: e.target.value })} 
+                  placeholder="邮箱地址"
+                />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label>工种</Label>
-                  <Select value={(form.category as string) || 'safety_officer'} onValueChange={(v) => setForm({ ...form, category: v as StudentCategory })}>
+                  <Label>课程</Label>
+                  <Input 
+                    value={addForm.course || ''} 
+                    onChange={(e) => setAddForm({ ...addForm, course: e.target.value })} 
+                    placeholder="所学课程"
+                  />
+                </div>
+                <div>
+                  <Label>状态</Label>
+                  <Select value={addForm.status || 'enrolled'} onValueChange={(v) => setAddForm({ ...addForm, status: v as Student['status'] })}>
                     <SelectTrigger>
-                      <SelectValue placeholder="选择工种" />
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {Object.entries(categoryLabels).map(([value, label]) => (
+                      {Object.entries(statusLabels).map(([value, label]) => (
                         <SelectItem key={value} value={value}>{label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label>金额(¥)</Label>
-                  <Input type="number" value={form.amount ?? 0} onChange={(e) => setForm({ ...form, amount: Number(e.target.value) })} />
-                </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <Label>招生人员ID</Label>
-                  <Input value={form.recruiterId ?? ''} onChange={(e) => setForm({ ...form, recruiterId: e.target.value })} />
+                  <Label>学费</Label>
+                  <Input 
+                    type="number" 
+                    value={addForm.tuitionFee || ''} 
+                    onChange={(e) => setAddForm({ ...addForm, tuitionFee: Number(e.target.value) })} 
+                    placeholder="学费金额"
+                  />
                 </div>
                 <div>
-                  <Label>招生人员姓名</Label>
-                  <Input value={form.recruiterName ?? ''} onChange={(e) => setForm({ ...form, recruiterName: e.target.value })} />
+                  <Label>已付金额</Label>
+                  <Input 
+                    type="number" 
+                    value={addForm.paidAmount || ''} 
+                    onChange={(e) => setAddForm({ ...addForm, paidAmount: Number(e.target.value) })} 
+                    placeholder="已付金额"
+                  />
+                </div>
+                <div>
+                  <Label>报名日期</Label>
+                  <Input 
+                    type="date" 
+                    value={addForm.enrollmentDate || ''} 
+                    onChange={(e) => setAddForm({ ...addForm, enrollmentDate: e.target.value })} 
+                  />
                 </div>
               </div>
             </div>
             <DialogFooter>
-              <Button onClick={async () => {
-                if (!form.name || !form.phone || !form.idCard || !form.category || form.amount === undefined) return;
-                const created = await createStudent(form as any);
-                setStudents(prev => [created, ...prev]);
-                setOpenAdd(false);
-                setForm({ status: 'pending', paymentStatus: 'unpaid', amount: 0, paidAmount: 0, tags: [] });
-              }}>保存</Button>
+              <Button onClick={handleAddStudent}>添加学员</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -235,47 +233,41 @@ export default function Students() {
           <CardContent>
             <div className="text-2xl font-bold">{students.length}</div>
             <p className="text-xs text-muted-foreground">
-              已审核 {students.filter(s => s.status === 'approved').length} 人
+              在读 {students.filter(s => s.status === 'studying').length} 人
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">待审核</CardTitle>
+            <CardTitle className="text-sm font-medium">已毕业</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {students.filter(s => s.status === 'pending').length}
+              {students.filter(s => s.status === 'graduated').length}
             </div>
-            <p className="text-xs text-muted-foreground">
-              需要审核的学员
-            </p>
+            <p className="text-xs text-muted-foreground">完成学业的学员</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">缴费完成</CardTitle>
+            <CardTitle className="text-sm font-medium">新报名</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {students.filter(s => s.paymentStatus === 'paid').length}
+              {students.filter(s => s.status === 'enrolled').length}
             </div>
-            <p className="text-xs text-muted-foreground">
-              完成缴费的学员
-            </p>
+            <p className="text-xs text-muted-foreground">待开课的学员</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">收入总额</CardTitle>
+            <CardTitle className="text-sm font-medium">收入总计</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ¥{students.reduce((sum, s) => sum + s.paidAmount, 0).toLocaleString()}
+              ¥{students.reduce((sum, s) => sum + (s.paidAmount || 0), 0).toLocaleString()}
             </div>
-            <p className="text-xs text-muted-foreground">
-              已收费用
-            </p>
+            <p className="text-xs text-muted-foreground">已收取的学费</p>
           </CardContent>
         </Card>
       </div>
@@ -297,17 +289,6 @@ export default function Students() {
                   className="pl-9"
                 />
               </div>
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger className="w-32">
-                  <SelectValue placeholder="工种" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">全部工种</SelectItem>
-                  {Object.entries(categoryLabels).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>{label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-32">
                   <SelectValue placeholder="状态" />
@@ -319,33 +300,13 @@ export default function Students() {
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={paymentFilter} onValueChange={setPaymentFilter}>
-                <SelectTrigger className="w-32">
-                  <SelectValue placeholder="缴费" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">全部缴费</SelectItem>
-                  {Object.entries(paymentLabels).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>{label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={sortKey} onValueChange={(v) => setSortKey(v as any)}>
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="排序" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="createdAt">按创建时间</SelectItem>
-                  <SelectItem value="name">按姓名</SelectItem>
-                  <SelectItem value="amount">按应收金额</SelectItem>
-                  <SelectItem value="paidAmount">按已收金额</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
-            <Button variant="outline">
-              <Filter className="mr-2 h-4 w-4" />
-              更多筛选
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline">
+                <Filter className="mr-2 h-4 w-4" />
+                更多筛选
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -356,225 +317,132 @@ export default function Students() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>学员信息</TableHead>
-                <TableHead>工种</TableHead>
+                <TableHead>学员</TableHead>
+                <TableHead>课程</TableHead>
                 <TableHead>状态</TableHead>
-                <TableHead>缴费情况</TableHead>
-                <TableHead>招生人员</TableHead>
-                <TableHead>标签</TableHead>
-                <TableHead>创建时间</TableHead>
+                <TableHead>缴费状态</TableHead>
+                <TableHead>联系方式</TableHead>
+                <TableHead>报名时间</TableHead>
                 <TableHead className="text-right">操作</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginated.map((student) => (
+              {filteredStudents.map((student) => (
                 <TableRow key={student.id}>
                   <TableCell>
-                    <div>
-                      <div className="font-medium">{student.name}</div>
-                      <div className="text-sm text-muted-foreground flex items-center gap-2">
-                        <Phone className="h-3 w-3" />
-                        {student.phone}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {student.idCard.replace(/(.{6})(.*)(.{4})/, '$1****$3')}
+                    <div className="flex items-center gap-3">
+                      <Avatar>
+                        <AvatarImage src={student.avatar} alt={student.name} />
+                        <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="font-medium">{student.name}</div>
+                        <div className="text-sm text-muted-foreground">{student.email}</div>
                       </div>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline">
-                      {categoryLabels[student.category]}
-                    </Badge>
+                    <Badge variant="outline">{student.course || '未指定'}</Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={getStatusVariant(student.status)}>
+                    <Badge variant={statusVariants[student.status] as any}>
                       {statusLabels[student.status]}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <Badge variant={getPaymentVariant(student.paymentStatus)}>
-                          {paymentLabels[student.paymentStatus]}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          ¥{student.paidAmount} / ¥{student.amount}
-                        </span>
+                    <div className="text-sm">
+                      <div>¥{(student.paidAmount || 0).toLocaleString()}</div>
+                      <div className="text-xs text-muted-foreground">
+                        / ¥{(student.tuitionFee || 0).toLocaleString()}
                       </div>
-                      <Progress value={getPaymentProgress(student)} className="h-1" />
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="text-sm">
-                      <div className="font-medium">{student.recruiterName}</div>
-                      <div className="text-xs text-muted-foreground">招生人员</div>
+                      <div>{student.phone}</div>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {student.tags.slice(0, 2).map((tag, index) => (
-                        <Badge key={index} variant="secondary" className="text-xs">
-                          {tag}
-                        </Badge>
-                      ))}
-                      {student.tags.length > 2 && (
-                        <Badge variant="outline" className="text-xs">
-                          +{student.tags.length - 2}
-                        </Badge>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {new Date(student.createdAt).toLocaleDateString('zh-CN')}
+                    {new Date(student.enrollmentDate || student.createdAt).toLocaleDateString('zh-CN')}
                   </TableCell>
                   <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <MoreHorizontal className="h-4 w-4" />
+                    <div className="flex items-center justify-end gap-2">
+                      {student.status === 'enrolled' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleStatusChange(student.id, 'studying')}
+                          className="h-8 w-8 p-0"
+                        >
+                          <UserCheck className="h-4 w-4 text-green-600" />
                         </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => { setSelected(student); setDetailOpen(true); }}>
-                          <Eye className="mr-2 h-4 w-4" />
-                          查看详情/编辑
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={async () => {
-                          const next = prompt('修改审核状态(pending/approved/rejected/graduated)', student.status);
-                          if (!next) return;
-                          const updated = await setStudentStatus(student.id, next as any);
-                          const idx = students.findIndex(s => s.id === student.id);
-                          const copy = [...students];
-                          copy[idx] = updated ? updated : { ...copy[idx], status: next as any };
-                          setStudents(copy);
-                        }}>
-                          修改审核状态
-                        </DropdownMenuItem>
-                        
-                        <DropdownMenuItem className="text-destructive">
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          删除学员
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                      )}
+                      {student.status === 'studying' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleStatusChange(student.id, 'graduated')}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Check className="h-4 w-4 text-blue-600" />
+                        </Button>
+                      )}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => { setSelected(student); setDetailOpen(true); }}>
+                            查看详情
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleStatusChange(student.id, 'suspended')}>
+                            暂停学习
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleStatusChange(student.id, 'dropped')}>
+                            标记退学
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
+              {filteredStudents.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-muted-foreground">
+                    未找到匹配的学员
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
-          
-          {filteredStudents.length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">未找到匹配的学员</p>
-            </div>
-          )}
-          {filteredStudents.length > 0 && (
-            <div className="py-4">
-              <Pagination>
-                <PaginationContent>
-                  <PaginationItem>
-                    <PaginationPrevious href="#" onClick={(e) => { e.preventDefault(); setPage(p => Math.max(1, p - 1)); }} />
-                  </PaginationItem>
-                  <span className="px-3 text-sm text-muted-foreground">{page} / {totalPages}</span>
-                  <PaginationItem>
-                    <PaginationNext href="#" onClick={(e) => { e.preventDefault(); setPage(p => Math.min(totalPages, p + 1)); }} />
-                  </PaginationItem>
-                </PaginationContent>
-              </Pagination>
-            </div>
-          )}
         </CardContent>
       </Card>
 
-      {/* 详情/编辑对话框 */}
+      {/* 详情对话框 */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="max-w-xl">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>学员详情</DialogTitle>
           </DialogHeader>
           {selected && (
-            <div className="grid gap-4">
-              {/* 基础信息 */}
-              <div className="grid gap-3">
-                <div className="text-sm font-semibold">基础信息</div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>姓名</Label>
-                    <Input value={selected.name} onChange={(e) => setSelected({ ...selected, name: e.target.value })} />
-                  </div>
-                  <div>
-                    <Label>手机号</Label>
-                    <Input value={selected.phone} onChange={(e) => setSelected({ ...selected, phone: e.target.value })} />
-                  </div>
-                </div>
-                <div>
-                  <Label>身份证号</Label>
-                  <Input value={selected.idCard} onChange={(e) => setSelected({ ...selected, idCard: e.target.value })} />
-                </div>
-              </div>
-
-              {/* 课程信息 */}
-              <div className="grid gap-3">
-                <div className="text-sm font-semibold">课程信息</div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>工种</Label>
-                    <Input value={categoryLabels[selected.category]} readOnly />
-                  </div>
-                  <div>
-                    <Label>标签</Label>
-                    <Input value={selected.tags?.join('、') || ''} readOnly />
-                  </div>
-                </div>
-              </div>
-
-              {/* 缴费信息 */}
-              <div className="grid gap-3">
-                <div className="text-sm font-semibold">缴费信息</div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>应收金额(¥)</Label>
-                    <Input type="number" value={selected.amount} onChange={(e) => setSelected({ ...selected, amount: Number(e.target.value) })} />
-                  </div>
-                  <div>
-                    <Label>已缴金额(¥)</Label>
-                    <Input type="number" value={selected.paidAmount} onChange={(e) => setSelected({ ...selected, paidAmount: Number(e.target.value) })} />
-                  </div>
-                </div>
-                <div>
-                  <Label>缴费状态</Label>
-                  <Input value={paymentLabels[selected.paymentStatus]} readOnly />
-                </div>
-              </div>
-
-              {/* 招生信息 */}
-              <div className="grid gap-3">
-                <div className="text-sm font-semibold">招生信息</div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>招生人员ID</Label>
-                    <Input value={selected.recruiterId} onChange={(e) => setSelected({ ...selected, recruiterId: e.target.value })} />
-                  </div>
-                  <div>
-                    <Label>招生人员姓名</Label>
-                    <Input value={selected.recruiterName} onChange={(e) => setSelected({ ...selected, recruiterName: e.target.value })} />
-                  </div>
-                </div>
-              </div>
+            <div className="grid gap-2 text-sm">
+              <div>姓名：{selected.name}</div>
+              <div>邮箱：{selected.email}</div>
+              <div>手机号：{selected.phone}</div>
+              <div>课程：{selected.course || '未指定'}</div>
+              <div>状态：{statusLabels[selected.status]}</div>
+              <div>学费：¥{(selected.tuitionFee || 0).toLocaleString()}</div>
+              <div>已付：¥{(selected.paidAmount || 0).toLocaleString()}</div>
+              <div>报名时间：{new Date(selected.enrollmentDate || selected.createdAt).toLocaleString('zh-CN')}</div>
+              <div>创建时间：{new Date(selected.createdAt).toLocaleString('zh-CN')}</div>
+              <div>更新时间：{new Date(selected.updatedAt).toLocaleString('zh-CN')}</div>
             </div>
           )}
           <DialogFooter>
-            <Button onClick={async () => {
-              if (!selected) return;
-              const updated = await updateStudent(selected.id, selected);
-              if (updated) {
-                const idx = students.findIndex(s => s.id === selected.id);
-                const copy = [...students];
-                copy[idx] = updated;
-                setStudents(copy);
-                setDetailOpen(false);
-              }
-            }}>保存</Button>
+            <Button onClick={() => setDetailOpen(false)}>关闭</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

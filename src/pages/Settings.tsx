@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { fetchRuleConfig, fetchUpgradeConditions, fetchReminderPlans } from '@/lib/api';
 import type { RuleConfig, UpgradeConditions, ReminderPlan } from '@/types';
 
+
 export default function Settings() {
   const [rule, setRule] = useState<RuleConfig | null>(null);
   const [up, setUp] = useState<UpgradeConditions | null>(null);
@@ -102,6 +103,8 @@ export default function Settings() {
           </Table>
         </CardContent>
       </Card>
+
+
     </div>
   );
 }

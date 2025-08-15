@@ -19,10 +19,11 @@ import Schedules from "./pages/Schedules";
 import { useAppStore } from "@/store/useAppStore";
 import Notifications from "./pages/Notifications";
 import Settings from "./pages/Settings";
-import Exports from "./pages/Exports";
 import Assessments from "./pages/Assessments";
+import Finance from "./pages/Finance";
 
 import RequireAuth from "./components/auth/RequireAuth";
+import { useAuth } from "@/hooks/useAuth";
 
 const Protected = ({ children }: { children: JSX.Element }) => (
   <RequireAuth>{children}</RequireAuth>
@@ -31,12 +32,17 @@ const Protected = ({ children }: { children: JSX.Element }) => (
 const queryClient = new QueryClient();
 
 const App = () => {
-  const { setUser, isAuthenticated } = useAppStore();
+  const { initialize } = useAppStore();
+  const { checkTokenRefresh } = useAuth();
 
-  // 模拟登录状态，实际项目中应该从后端验证
+  // 应用初始化
   React.useEffect(() => {
-    // 不再在应用启动时强行模拟登录
-  }, []);
+    // 初始化应用状态
+    initialize();
+
+    // 检查认证状态
+    checkTokenRefresh();
+  }, [initialize, checkTokenRefresh]);
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -48,7 +54,7 @@ const App = () => {
             <Route path="/login" element={<AuthLogin />} />
             <Route path="/register" element={<AuthRegister />} />
             <Route path="/" element={<AppLayout />}>
-              <Route index element={<Dashboard />} />
+              <Route index element={<Protected><Dashboard /></Protected>} />
               <Route path="approvals" element={<Protected><Approvals /></Protected>} />
               <Route path="users" element={<Protected><Users /></Protected>} />
               <Route path="students" element={<Protected><Students /></Protected>} />
@@ -59,8 +65,7 @@ const App = () => {
               <Route path="assessments" element={<Protected><Assessments /></Protected>} />
               <Route path="notifications" element={<Protected><Notifications /></Protected>} />
               <Route path="settings" element={<Protected><Settings /></Protected>} />
-              <Route path="exports" element={<Protected><Exports /></Protected>} />
-              { /* 财务页已移除 */ }
+              <Route path="finance" element={<Protected><Finance /></Protected>} />
             </Route>
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

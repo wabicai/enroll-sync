@@ -28,7 +28,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { fetchApprovalsAll, decideApprovalStep } from "@/lib/api";
+import { fetchApprovals, fetchApprovalsPending, decideApprovalStep } from "@/lib/api";
 import { useAppStore } from "@/store/useAppStore";
 import {
   Sheet,
@@ -108,12 +108,36 @@ export default function Approvals() {
     setLoading(true);
     try {
       const targetType = tabTypeMap[currentTab];
-      const response = await fetchApprovalsAll({
-        page: currentPage,
-        page_size: pageSize,
-        target_type: targetType,
-        status: currentStatus,
-      });
+      // 使用基础的 fetchApprovals，然后在前端进行筛选
+      const allApprovals = await fetchApprovals();
+
+      // 前端筛选逻辑（临时方案，建议后端支持参数）
+      let filteredApprovals = allApprovals;
+
+      // 根据类型筛选
+      if (targetType && targetType !== 'all') {
+        filteredApprovals = filteredApprovals.filter((item: any) =>
+          item.target_type === targetType
+        );
+      }
+
+      // 根据状态筛选
+      if (currentStatus && currentStatus !== 'all') {
+        filteredApprovals = filteredApprovals.filter((item: any) =>
+          item.status?.toString() === currentStatus.toString()
+        );
+      }
+
+      // 模拟分页
+      const startIndex = (currentPage - 1) * pageSize;
+      const endIndex = startIndex + pageSize;
+      const paginatedApprovals = filteredApprovals.slice(startIndex, endIndex);
+
+      const response = {
+        items: paginatedApprovals,
+        total: filteredApprovals.length,
+        pages: Math.ceil(filteredApprovals.length / pageSize)
+      };
 
       setApprovals((response as any).items || []);
       setTotal((response as any).total || 0);
@@ -160,7 +184,7 @@ export default function Approvals() {
   ) => {
     try {
       // 后端状态机会自动处理流转，返回更新后的完整状态
-      const result = await decideApprovalStep(instanceId, stepKey, approve, reason);
+      await decideApprovalStep(instanceId.toString(), stepKey, approve, reason);
 
       // 关闭弹窗
       setApprovalOpen(false);

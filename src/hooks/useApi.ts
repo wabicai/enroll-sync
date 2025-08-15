@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { apiRequest } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import type { ApiResponse } from '@/types';
 
@@ -14,17 +15,19 @@ const getCurrentMode = () => {
   const useMock = (import.meta as any).env?.VITE_USE_MOCK === 'true';
   if (useMock) return 'mock';
 
-  // 优先使用 VITE_API_ENV 环境变量
-  const apiEnv = (import.meta as any).env?.VITE_API_ENV;
-  if (apiEnv === 'dev') return 'local';
-  if (apiEnv === 'prod') return 'production';
+  // 优先使用 VITE_API_BASE_URL 环境变量
+  const apiBaseUrl = (import.meta as any).env?.VITE_API_BASE_URL;
+  if (apiBaseUrl === 'http://localhost:8000') return 'local';
+  if (apiBaseUrl && apiBaseUrl.includes('chuangningpeixun.com')) return 'production';
 
-  // 回退到 MODE 环境变量
   const mode = (import.meta as any).env?.MODE;
   return mode === 'production' ? 'production' : 'local';
 };
 
 const currentMode = getCurrentMode();
+
+// 导出配置和函数供其他模块使用
+export { API_CONFIG, getCurrentMode };
 
 interface UseApiOptions {
   showErrorToast?: boolean;
@@ -46,33 +49,9 @@ export const useApi = <T = any>(options: UseApiOptions = {}) => {
     setError(null);
     
     try {
-      let url = endpoint;
-      
-      // 根据模式构建URL
-      if (currentMode !== 'mock') {
-        const baseUrl = currentMode === 'local' ? API_CONFIG.LOCAL : API_CONFIG.PRODUCTION;
-        url = `${baseUrl}${endpoint}`;
-      }
-      
-      // 模拟API延迟
-      if (currentMode === 'mock') {
-        await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 500));
-      }
-      
-      const response = await fetch(url, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...config.headers,
-        },
-        ...config,
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data: ApiResponse<T> = await response.json();
-      
+      // 使用统一的apiRequest，自动处理token和错误
+      const data: ApiResponse<T> = await apiRequest(endpoint, config);
+
       if (!data.success) {
         throw new Error(data.message || '请求失败');
       }
@@ -136,5 +115,3 @@ export const useApi = <T = any>(options: UseApiOptions = {}) => {
   };
 };
 
-// 导出当前配置供其他模块使用
-export { currentMode, API_CONFIG };

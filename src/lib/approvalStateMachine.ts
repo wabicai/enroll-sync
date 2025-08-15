@@ -3,7 +3,19 @@
  * 提供简洁的API接口，隐藏复杂的状态机逻辑
  */
 
-import { httpGet, httpPost } from './api';
+// 使用统一的 apiRequest 函数
+import { apiRequest } from './api';
+
+const httpGet = async <T>(path: string): Promise<T> => {
+  return await apiRequest(path);
+};
+
+const httpPost = async <T>(path: string, body?: any): Promise<T> => {
+  return await apiRequest(path, {
+    method: 'POST',
+    body: body ? JSON.stringify(body) : undefined,
+  });
+};
 
 // 状态枚举
 export enum InstanceStatus {

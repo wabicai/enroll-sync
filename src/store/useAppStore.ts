@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { User, Theme } from '@/types';
+import { isTokenExpired, clearAuthState, handleAuthFailure } from '@/lib/auth';
 
 interface AppState {
   // 用户状态
@@ -30,6 +31,12 @@ interface AppState {
 
   // 退出登录
   logout: () => void;
+
+  // 检查认证状态
+  checkAuthStatus: () => boolean;
+
+  // 安全登录（带token验证）
+  secureLogin: (user: User, accessToken: string, refreshToken?: string) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -96,6 +103,58 @@ export const useAppStore = create<AppState>()(
           refreshToken: null,
           isAuthenticated: false,
         });
+
+        // 重定向到登录页面（不调用clearAuthState避免循环）
+        if (typeof window !== 'undefined') {
+          const currentPath = window.location.pathname;
+          if (currentPath !== '/login') {
+            window.location.href = '/login';
+          }
+        }
+      },
+
+      checkAuthStatus: () => {
+        const { accessToken, isAuthenticated } = get();
+
+        // 如果没有token或未认证，返回false
+        if (!accessToken || !isAuthenticated) {
+          return false;
+        }
+
+        // 检查token是否过期
+        if (isTokenExpired(accessToken)) {
+          console.warn('检测到过期token，清理认证状态');
+          get().logout();
+          return false;
+        }
+
+        return true;
+      },
+
+      secureLogin: (user: User, accessToken: string, refreshToken?: string) => {
+        // 验证token格式
+        if (!accessToken || typeof accessToken !== 'string') {
+          console.error('无效的access token');
+          handleAuthFailure(new Error('无效的access token'));
+          return;
+        }
+
+        // 检查token是否已过期
+        if (isTokenExpired(accessToken)) {
+          console.error('提供的access token已过期');
+          handleAuthFailure(new Error('Token已过期'));
+          return;
+        }
+
+        // 设置认证状态
+        set({
+          user,
+          accessToken,
+          refreshToken: refreshToken || null,
+          isAuthenticated: true,
+        });
+
+        console.log('✅ 安全登录成功');
       },
     }),
     {
