@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useAppStore } from '@/store/useAppStore';
 import { loginAdmin } from '@/lib/api';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 
 export default function AuthLogin() {
   const { setUser, setTokens } = useAppStore();
@@ -66,7 +66,10 @@ export default function AuthLogin() {
               {loading ? '登录中...' : '登录'}
             </Button>
             <div className="text-sm text-center text-muted-foreground">
-              没有账号？请联系管理员创建后台账号
+              没有账号？
+              <Link to="/register" className="text-primary hover:underline ml-1">
+                立即注册
+              </Link>
             </div>
           </form>
         </CardContent>

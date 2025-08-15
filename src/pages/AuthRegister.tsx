@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAppStore } from '@/store/useAppStore';
-import { mockUsers } from '@/mock';
+import { register } from '@/lib/api';
+import { useNavigate, Link } from 'react-router-dom';
 
 const identityOptions = [
   { value: 'full_time', label: '全职招生' },
@@ -17,6 +18,7 @@ const identityOptions = [
 
 export default function AuthRegister() {
   const { setUser } = useAppStore();
+  const navigate = useNavigate();
   const [form, setForm] = useState({
     email: '',
     password: '',
@@ -28,40 +30,36 @@ export default function AuthRegister() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
-    // 简单字段校验（与后台规范一致的最小子集）
-    if (!form.email || !form.password || !form.name || !form.id_card || !form.identity_type) {
+    // 简单字段校验
+    if (!form.email || !form.password || !form.name) {
       setError('请完整填写必填信息');
       setLoading(false);
       return;
     }
-    if (form.identity_type === 'part_time' && !form.invite_code) {
-      setError('兼职招生需填写负责人邀请码');
-      setLoading(false);
-      return;
-    }
 
-    // mock 注册：直接创建一个待审核用户并跳转到登录
-    setTimeout(() => {
-      const newUser = {
-        id: String(Date.now()),
+    try {
+      const result = await register({
         name: form.name,
         email: form.email.toLowerCase(),
-        phone: '',
-        role: 'system_admin' as const,
-        status: 'pending' as const,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        identity: (form.identity_type as any),
-      };
-      (mockUsers as any).push(newUser);
+        password: form.password,
+      });
+
+      // 注册成功，跳转到登录页面
+      navigate('/login', {
+        state: {
+          message: '注册成功！请使用您的邮箱和密码登录。'
+        }
+      });
+    } catch (err: any) {
+      setError(err?.message || '注册失败，请重试');
+    } finally {
       setLoading(false);
-      window.location.href = '/login';
-    }, 800);
+    }
   };
 
   return (
@@ -112,7 +110,10 @@ export default function AuthRegister() {
               {loading ? '提交中...' : '注册并提交审批'}
             </Button>
             <div className="text-sm text-center text-muted-foreground">
-              已有账号？<a className="text-primary" href="/login">去登录</a>
+              已有账号？
+              <Link to="/login" className="text-primary hover:underline ml-1">
+                去登录
+              </Link>
             </div>
           </form>
         </CardContent>

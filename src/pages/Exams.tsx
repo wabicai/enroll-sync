@@ -28,6 +28,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { fetchExams } from '@/lib/api';
 import type { Exam, StudentCategory } from '@/types';
+import { ExportButton } from '@/components/common/ExportButton';
+import { useEffect } from 'react';
 
 const categoryLabels = {
   safety_officer: '安全员',
@@ -100,10 +102,21 @@ export default function Exams() {
             管理考试安排、考位分配和考试结果
           </p>
         </div>
-        <Button className="bg-primary hover:bg-primary-hover">
-          <Plus className="mr-2 h-4 w-4" />
-          添加考试
-        </Button>
+        <div className="flex items-center gap-2">
+          <ExportButton
+            exportType="exams"
+            buttonText="导出考试"
+            filters={{
+              status: statusFilter !== 'all' ? statusFilter : undefined,
+              category: categoryFilter !== 'all' ? categoryFilter : undefined,
+              search: searchTerm || undefined
+            }}
+          />
+          <Button className="bg-primary hover:bg-primary-hover">
+            <Plus className="mr-2 h-4 w-4" />
+            添加考试
+          </Button>
+        </div>
       </div>
 
       {/* 统计卡片 */}

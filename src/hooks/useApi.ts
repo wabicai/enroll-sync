@@ -13,12 +13,20 @@ const API_CONFIG = {
 const getCurrentMode = () => {
   const useMock = (import.meta as any).env?.VITE_USE_MOCK === 'true';
   if (useMock) return 'mock';
-  
+
+  // 优先使用 VITE_API_BASE_URL 环境变量
+  const apiBaseUrl = (import.meta as any).env?.VITE_API_BASE_URL;
+  if (apiBaseUrl === 'http://localhost:8000') return 'local';
+  if (apiBaseUrl && apiBaseUrl.includes('chuangningpeixun.com')) return 'production';
+
   const mode = (import.meta as any).env?.MODE;
   return mode === 'production' ? 'production' : 'local';
 };
 
 const currentMode = getCurrentMode();
+
+// 导出配置和函数供其他模块使用
+export { API_CONFIG, getCurrentMode };
 
 interface UseApiOptions {
   showErrorToast?: boolean;
@@ -130,5 +138,3 @@ export const useApi = <T = any>(options: UseApiOptions = {}) => {
   };
 };
 
-// 导出当前配置供其他模块使用
-export { currentMode, API_CONFIG };

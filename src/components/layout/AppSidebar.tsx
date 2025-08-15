@@ -10,7 +10,6 @@ import {
   CheckCircle2,
   Bell,
   TrendingUp,
-  Download,
   DollarSign,
   BookOpen,
   ChevronDown,
@@ -87,11 +86,7 @@ const menuGroups = [
         url: '/assessments',
         icon: TrendingUp,
       },
-      {
-        title: '导出中心',
-        url: '/exports',
-        icon: Download,
-      },
+
       {
         title: '财务',
         url: '/finance',
