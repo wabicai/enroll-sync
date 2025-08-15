@@ -22,6 +22,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { getCurrentMode } from '@/hooks/useApi';
+import { api } from '@/lib/api';
 
 interface ExportButtonProps {
   /** 导出类型 */
@@ -121,25 +122,7 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
       return;
     }
 
-    const baseUrl = getApiBaseUrl();
-    if (!baseUrl) {
-      toast({
-        title: '导出失败',
-        description: '无法获取API地址',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    const token = getAuthToken();
-    if (!token) {
-      toast({
-        title: '导出失败',
-        description: '请先登录',
-        variant: 'destructive'
-      });
-      return;
-    }
+    // 统一API调用会自动处理token验证
 
     setLoading(true);
 
@@ -156,13 +139,13 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
         }
       };
 
-      // 根据导出类型选择API端点
+      // 根据导出类型选择API端点（自动添加/api/v1前缀）
       const endpoints = {
-        students: '/api/v1/students/export',
-        exams: '/api/v1/exams/export',
-        rewards: '/api/v1/rewards/export',
-        courses: '/api/v1/courses/export',
-        schedules: '/api/v1/schedules/export'
+        students: 'students/export',
+        exams: 'exams/export',
+        rewards: 'rewards/export',
+        courses: 'courses/export',
+        schedules: 'schedules/export'
       };
 
       const endpoint = endpoints[exportType];
@@ -170,27 +153,14 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
         throw new Error(`不支持的导出类型: ${exportType}`);
       }
 
-      const response = await fetch(`${baseUrl}${endpoint}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(exportData)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `导出失败: ${response.status}`);
-      }
-
-      const result = await response.json();
+      // 使用统一的API调用
+      const result = await api.post(endpoint, exportData);
 
       // 如果返回了文件URL，直接下载
       if (result.file_url) {
-        const downloadUrl = result.file_url.startsWith('http') 
-          ? result.file_url 
-          : `${baseUrl}${result.file_url}`;
+        const downloadUrl = result.file_url.startsWith('http')
+          ? result.file_url
+          : result.file_url; // 统一API会处理完整URL
         
         // 创建下载链接
         const link = document.createElement('a');

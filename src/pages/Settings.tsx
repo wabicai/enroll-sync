@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { fetchRuleConfig, fetchUpgradeConditions, fetchReminderPlans } from '@/lib/api';
 import type { RuleConfig, UpgradeConditions, ReminderPlan } from '@/types';
-import TokenDebugPanel from '@/components/auth/TokenDebugPanel';
+
 
 export default function Settings() {
   const [rule, setRule] = useState<RuleConfig | null>(null);
@@ -104,13 +104,7 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      {/* Token调试面板 - 仅在开发环境显示 */}
-      {process.env.NODE_ENV === 'development' && (
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight mb-4">开发调试</h2>
-          <TokenDebugPanel />
-        </div>
-      )}
+
     </div>
   );
 }

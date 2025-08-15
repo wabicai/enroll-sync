@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAppStore } from '@/store/useAppStore';
 import { mockUsers } from '@/mock';
+import { api } from '@/lib/api';
 
 const identityOptions = [
   { value: 'full_time', label: '全职招生' },
@@ -70,20 +71,8 @@ export default function AuthRegister() {
         tags: `身份：${identityOptions.find(opt => opt.value === form.identity_type)?.label || ''}`,
       };
 
-      const response = await fetch('https://chuangningpeixun.com/api/v1/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(registerData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: '注册失败' }));
-        throw new Error(errorData.message || `HTTP ${response.status}`);
-      }
-
-      const result = await response.json();
+      // 使用统一的API调用，路径更简洁
+      const result = await api.post('auth/register', registerData);
       alert(`注册成功！用户ID: ${result.user_id}，状态: ${result.need_audit ? '待审核' : '已激活'}，请返回登录页面`);
       window.location.href = '/login';
       

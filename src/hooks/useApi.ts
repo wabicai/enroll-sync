@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { apiRequest } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import type { ApiResponse } from '@/types';
 
@@ -48,33 +49,9 @@ export const useApi = <T = any>(options: UseApiOptions = {}) => {
     setError(null);
     
     try {
-      let url = endpoint;
-      
-      // 根据模式构建URL
-      if (currentMode !== 'mock') {
-        const baseUrl = currentMode === 'local' ? API_CONFIG.LOCAL : API_CONFIG.PRODUCTION;
-        url = `${baseUrl}${endpoint}`;
-      }
-      
-      // 模拟API延迟
-      if (currentMode === 'mock') {
-        await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 500));
-      }
-      
-      const response = await fetch(url, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...config.headers,
-        },
-        ...config,
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data: ApiResponse<T> = await response.json();
-      
+      // 使用统一的apiRequest，自动处理token和错误
+      const data: ApiResponse<T> = await apiRequest(endpoint, config);
+
       if (!data.success) {
         throw new Error(data.message || '请求失败');
       }

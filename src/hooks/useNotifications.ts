@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import type { NotificationItem } from '@/types';
 import { getCurrentMode, API_CONFIG } from '@/hooks/useApi';
+import { api } from '@/lib/api';
 
 export const useNotifications = () => {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -14,7 +15,7 @@ export const useNotifications = () => {
   const reconnectAttempts = useRef(0);
   const maxReconnectAttempts = 5;
 
-  // 获取认证token
+  // 获取认证token (WebSocket需要)
   const getAuthToken = () => {
     try {
       const authData = localStorage.getItem('auth');
@@ -26,13 +27,6 @@ export const useNotifications = () => {
       console.error('获取token失败:', error);
     }
     return null;
-  };
-
-  // 获取API基础URL
-  const getApiBaseUrl = () => {
-    const mode = getCurrentMode();
-    if (mode === 'mock') return null;
-    return mode === 'local' ? API_CONFIG.LOCAL : API_CONFIG.PRODUCTION;
   };
 
   // 获取WebSocket URL
@@ -87,38 +81,16 @@ export const useNotifications = () => {
       return;
     }
 
-    const baseUrl = getApiBaseUrl();
-    if (!baseUrl) return;
-
-    const token = getAuthToken();
-    if (!token) return;
-
     setLoading(true);
     try {
-      const response = await fetch(`${baseUrl}/api/v1/notifications/`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      // 使用统一的API调用，自动处理token和错误，自动添加/api/v1前缀
+      const data = await api.get('notifications/');
+      setNotifications(data.items || []);
 
-      if (response.ok) {
-        const data = await response.json();
-        setNotifications(data.items || []);
-        
-        // 获取未读数量
-        const unreadResponse = await fetch(`${baseUrl}/api/v1/notifications/unread-count`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        if (unreadResponse.ok) {
-          const unreadData = await unreadResponse.json();
-          setUnreadCount(unreadData.count || 0);
-        }
-      }
+      // 获取未读数量
+      const unreadData = await api.get('notifications/unread-count');
+      setUnreadCount(unreadData.count || 0);
+
     } catch (error) {
       console.error('获取通知失败:', error);
     } finally {
@@ -137,27 +109,14 @@ export const useNotifications = () => {
       return;
     }
 
-    const baseUrl = getApiBaseUrl();
-    if (!baseUrl) return;
-
-    const token = getAuthToken();
-    if (!token) return;
-
     try {
-      const response = await fetch(`${baseUrl}/api/v1/notifications/${id}/read`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      // 使用统一的API调用，路径更简洁
+      await api.post(`notifications/${id}/read`);
 
-      if (response.ok) {
-        setNotifications(prev => 
-          prev.map(n => n.id === id ? { ...n, is_read: true } : n)
-        );
-        setUnreadCount(prev => Math.max(0, prev - 1));
-      }
+      setNotifications(prev =>
+        prev.map(n => n.id === id ? { ...n, is_read: true } : n)
+      );
+      setUnreadCount(prev => Math.max(0, prev - 1));
     } catch (error) {
       console.error('标记已读失败:', error);
     }
@@ -172,25 +131,12 @@ export const useNotifications = () => {
       return;
     }
 
-    const baseUrl = getApiBaseUrl();
-    if (!baseUrl) return;
-
-    const token = getAuthToken();
-    if (!token) return;
-
     try {
-      const response = await fetch(`${baseUrl}/api/v1/notifications/read-all`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      // 使用统一的API调用，路径更简洁
+      await api.post('notifications/read-all');
 
-      if (response.ok) {
-        setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
-        setUnreadCount(0);
-      }
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+      setUnreadCount(0);
     } catch (error) {
       console.error('标记全部已读失败:', error);
     }
@@ -211,31 +157,18 @@ export const useNotifications = () => {
       return;
     }
 
-    const baseUrl = getApiBaseUrl();
-    if (!baseUrl) return;
-
-    const token = getAuthToken();
-    if (!token) return;
-
     try {
-      const response = await fetch(`${baseUrl}/api/v1/notifications/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      // 使用统一的API调用，路径更简洁
+      await api.delete(`notifications/${id}`);
 
-      if (response.ok) {
-        setNotifications(prev => {
-          const notification = prev.find(n => n.id === id);
-          const filtered = prev.filter(n => n.id !== id);
-          if (notification && !notification.is_read) {
-            setUnreadCount(prev => Math.max(0, prev - 1));
-          }
-          return filtered;
-        });
-      }
+      setNotifications(prev => {
+        const notification = prev.find(n => n.id === id);
+        const filtered = prev.filter(n => n.id !== id);
+        if (notification && !notification.is_read) {
+          setUnreadCount(prev => Math.max(0, prev - 1));
+        }
+        return filtered;
+      });
     } catch (error) {
       console.error('删除通知失败:', error);
     }
