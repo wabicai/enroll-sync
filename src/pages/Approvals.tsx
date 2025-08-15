@@ -108,40 +108,18 @@ export default function Approvals() {
     setLoading(true);
     try {
       const targetType = tabTypeMap[currentTab];
-      // 使用基础的 fetchApprovals，然后在前端进行筛选
-      const allApprovals = await fetchApprovals();
 
-      // 前端筛选逻辑（临时方案，建议后端支持参数）
-      let filteredApprovals = allApprovals;
+      // 使用后端分页和筛选功能
+      const response = await fetchApprovals(
+        currentPage,
+        pageSize,
+        targetType === 'all' ? undefined : targetType,
+        currentStatus
+      );
 
-      // 根据类型筛选
-      if (targetType && targetType !== 'all') {
-        filteredApprovals = filteredApprovals.filter((item: any) =>
-          item.target_type === targetType
-        );
-      }
-
-      // 根据状态筛选
-      if (currentStatus && currentStatus !== 'all') {
-        filteredApprovals = filteredApprovals.filter((item: any) =>
-          item.status?.toString() === currentStatus.toString()
-        );
-      }
-
-      // 模拟分页
-      const startIndex = (currentPage - 1) * pageSize;
-      const endIndex = startIndex + pageSize;
-      const paginatedApprovals = filteredApprovals.slice(startIndex, endIndex);
-
-      const response = {
-        items: paginatedApprovals,
-        total: filteredApprovals.length,
-        pages: Math.ceil(filteredApprovals.length / pageSize)
-      };
-
-      setApprovals((response as any).items || []);
-      setTotal((response as any).total || 0);
-      setTotalPages((response as any).pages || 0);
+      setApprovals(response.items || []);
+      setTotal(response.total || 0);
+      setTotalPages(response.pages || 0);
     } catch (error) {
       console.error("Failed to load approval data:", error);
     } finally {
@@ -200,8 +178,7 @@ export default function Approvals() {
 
   // 获取当前步骤名称
   const getCurrentStepName = (item: any) => {
-    // 优先使用 enhanced_steps，回退到 steps
-    const steps = item.enhanced_steps || item.steps;
+    const steps = item.steps;
     if (!steps || steps.length === 0) return "未知步骤";
 
     const currentStepIndex = item.instance.current_step_index;
@@ -334,7 +311,7 @@ export default function Approvals() {
                           reward_details,
                           role_upgrade_details,
                         } = item;
-                        const steps = item.enhanced_steps || item.steps || [];
+                        const steps = item.steps || [];
                         const current = steps[inst.current_step_index];
 
                         // 获取申请人姓名
@@ -343,7 +320,7 @@ export default function Approvals() {
                             inst.target_type === "user_registration" &&
                             user_details
                           ) {
-                            return user_details.name; // 修正字段名
+                            return user_details.name;
                           }
                           if (
                             inst.target_type === "student_enrollment" &&
@@ -355,16 +332,17 @@ export default function Approvals() {
                             inst.target_type === "reward_application" &&
                             reward_details
                           ) {
+                            // 优先使用 student_name，回退到 applicant_name
                             return (
-                              reward_details.applicant_name ||
-                              reward_details.student_name
-                            ); // 支持两个字段
+                              reward_details.student_name ||
+                              reward_details.applicant_name
+                            );
                           }
                           if (
                             inst.target_type === "user_role_upgrade" &&
                             role_upgrade_details
                           ) {
-                            return role_upgrade_details.user_name; // 修正字段名
+                            return role_upgrade_details.user_name;
                           }
                           return `ID: ${inst.target_id}`;
                         };
@@ -457,8 +435,8 @@ export default function Approvals() {
                                     </div>
                                     <div className="text-sm text-muted-foreground">
                                       手机:{" "}
-                                      {student_details?.student_phone ||
-                                        reward_details?.student_phone ||
+                                      {student_details?.phone ||
+                                        reward_details?.phone ||
                                         "未知"}
                                     </div>
                                   </div>
@@ -721,7 +699,7 @@ export default function Approvals() {
                         <div>
                           <label className="text-sm font-medium">手机号</label>
                           <div className="mt-1">
-                            {student_details.student_phone || "未提供"}
+                            {student_details.phone || "未提供"}
                           </div>
                         </div>
                         <div>
