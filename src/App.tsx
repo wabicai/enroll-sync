@@ -54,7 +54,7 @@ const App = () => {
             <Route path="/login" element={<AuthLogin />} />
             <Route path="/register" element={<AuthRegister />} />
             <Route path="/" element={<AppLayout />}>
-              <Route index element={<Dashboard />} />
+              <Route index element={<Protected><Dashboard /></Protected>} />
               <Route path="approvals" element={<Protected><Approvals /></Protected>} />
               <Route path="users" element={<Protected><Users /></Protected>} />
               <Route path="students" element={<Protected><Students /></Protected>} />
