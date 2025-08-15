@@ -12,11 +12,46 @@ import type {
   NotificationItem
 } from '@/types';
 
-// 临时定义 Approval 类型，直到类型文件更新
+// 审批相关类型定义，匹配后端响应
+interface ApprovalInstance {
+  id: number;
+  target_type: string;
+  target_id: string;
+  status: number;
+  current_step_index: number;
+  workflow_config?: any;
+  metadata?: any;
+  created_by?: number;
+  created_at: string;
+  updated_at: string;
+  completed_at?: string;
+}
+
+interface ApprovalStep {
+  id: number;
+  instance_id: number;
+  step_key: string;
+  step_name: string;
+  step_order: number;
+  status: number;
+  approver_roles?: number[];
+  approver_user_id?: number;
+  approver_name?: string;
+  is_required: boolean;
+  can_skip: boolean;
+  processed_at?: string;
+  reason?: string;
+}
+
 interface Approval {
-  id: string;
-  status: string;
-  [key: string]: any;
+  instance: ApprovalInstance;
+  steps: ApprovalStep[];
+  user_details?: any;
+  reward_details?: any;
+  student_details?: any;
+  role_upgrade_details?: any;
+  approval_progress?: any;
+  auditor_info?: any;
 }
 
 // API路径前缀配置
@@ -450,14 +485,53 @@ export const deleteUser = async (id: string): Promise<void> => {
 };
 
 // 审批管理
-export const fetchApprovals = async (): Promise<Approval[]> => {
-  const result = await apiRequest('/approvals/all');
-  return result.data || [];
+export const fetchApprovals = async (
+  page: number = 1,
+  pageSize: number = 20,
+  targetType?: string,
+  status?: number
+): Promise<{items: Approval[], total: number, pages: number}> => {
+  const params = new URLSearchParams({
+    page: page.toString(),
+    page_size: pageSize.toString(),
+  });
+
+  if (targetType) {
+    params.append('target_type', targetType);
+  }
+
+  if (status !== undefined) {
+    params.append('status', status.toString());
+  }
+
+  const result = await apiRequest(`/approvals/all?${params.toString()}`);
+  return {
+    items: result.items || [],
+    total: result.total || 0,
+    pages: result.pages || 0
+  };
 };
 
-export const fetchApprovalsPending = async (): Promise<Approval[]> => {
-  const result = await apiRequest('/approvals/pending');
-  return result.items || [];
+export const fetchApprovalsPending = async (
+  page: number = 1,
+  pageSize: number = 20,
+  targetType?: string
+): Promise<{items: Approval[], total: number, pages: number}> => {
+  const params = new URLSearchParams({
+    page: page.toString(),
+    page_size: pageSize.toString(),
+  });
+
+  if (targetType) {
+    params.append('target_type', targetType);
+  }
+
+  const result = await apiRequest(`/approvals/pending?${params.toString()}`);
+  return {
+    items: result.items || [],
+    total: result.total || 0,
+    pages: result.pages || 0
+  };
 };
 
 export const updateApprovalStatus = async (id: string, status: Approval['status'], comment?: string): Promise<Approval> => {

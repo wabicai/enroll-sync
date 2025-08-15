@@ -7,7 +7,6 @@
     "dev": "vite --mode development",
     "local": "VITE_USE_MOCK=false vite --mode development",
     "prod": "vite --mode production",
-    "build": "vite build --mode development",
     "build:dev": "vite build --mode development",
     "build:prod": "vite build --mode production",
     "lint": "eslint .",
