@@ -10,11 +10,7 @@ import {
   CheckCircle2,
   Bell,
   TrendingUp,
-<<<<<<< HEAD
   Download,
-=======
-  DollarSign,
->>>>>>> feature/local-changes
   BookOpen,
   ChevronDown,
 } from 'lucide-react';
@@ -90,7 +86,11 @@ const menuGroups = [
         url: '/assessments',
         icon: TrendingUp,
       },
-
+      {
+        title: '导出中心',
+        url: '/exports',
+        icon: Download,
+      },
       {
         title: '系统设置',
         url: '/settings',
