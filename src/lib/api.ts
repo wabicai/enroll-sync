@@ -247,7 +247,7 @@ export const apiRequest = async (endpoint: string, options: RequestInit = {}, re
 
       // 其他错误
       console.error(`❌ [${requestId}] 请求失败:`, response.status, errorData);
-      throw new Error(errorData.message || `请求失败: ${response.status}`);
+      throw new Error(errorData.detail || errorData.message || `请求失败: ${response.status}`);
     }
 
     console.log(`✅ [${requestId}] API请求成功:`, normalizedEndpoint, response.status);
@@ -352,7 +352,7 @@ export const deleteStudent = async (id: string): Promise<void> => {
 // 考试管理
 export const fetchExams = async (): Promise<Exam[]> => {
   const result = await apiRequest('/exams');
-  return result.data || [];
+  return result.items || result.data || [];
 };
 
 export const createExam = async (exam: Omit<Exam, 'id' | 'createdAt' | 'updatedAt'>): Promise<Exam> => {
@@ -380,7 +380,7 @@ export const deleteExam = async (id: string): Promise<void> => {
 // 奖励管理
 export const fetchRewards = async (): Promise<Reward[]> => {
   const result = await apiRequest('/api/v1/rewards/students');
-  return result.data || [];
+  return result.items || result.data || [];
 };
 
 export const createReward = async (reward: any): Promise<Reward> => {
@@ -416,7 +416,7 @@ export const applyReward = async (rewardData: any): Promise<Reward> => {
 // 用户管理
 export const fetchUsers = async (): Promise<User[]> => {
   const result = await apiRequest('/users');
-  return result.data || [];
+  return result.items || result.data || [];
 };
 
 export const createUser = async (user: Omit<User, 'id' | 'createdAt' | 'updatedAt'>): Promise<User> => {
@@ -452,7 +452,7 @@ export const deleteUser = async (id: string): Promise<void> => {
 // 审批管理
 export const fetchApprovals = async (): Promise<Approval[]> => {
   const result = await apiRequest('/approvals/all');
-  return result.data || [];
+  return result.items || result.data || [];
 };
 
 export const fetchApprovalsPending = async (): Promise<Approval[]> => {
@@ -479,7 +479,7 @@ export const decideApprovalStep = async (id: string, stepKey: string, approved: 
 // 通知管理
 export const fetchNotifications = async (): Promise<NotificationItem[]> => {
   const result = await apiRequest('/notifications');
-  return result.data || [];
+  return result.items || result.data || [];
 };
 
 export const markNotificationAsRead = async (id: number): Promise<void> => {
@@ -505,7 +505,16 @@ export const deleteNotification = async (id: number): Promise<void> => {
 // 课程管理
 export const fetchCourses = async (): Promise<Course[]> => {
   const result = await apiRequest('/courses');
-  return result.data || [];
+
+  // 后端直接返回 {items: [...]} 结构
+  const courses = result.items || result.data?.items || result.data || [];
+
+  // 转换字段名以匹配前端类型定义
+  return courses.map((course: any) => ({
+    ...course,
+    createdAt: course.created_at || course.createdAt,
+    updatedAt: course.updated_at || course.updatedAt,
+  }));
 };
 
 export const createCourse = async (course: Omit<Course, 'id' | 'createdAt' | 'updatedAt'>): Promise<Course> => {
@@ -531,9 +540,11 @@ export const deleteCourse = async (id: string): Promise<void> => {
 };
 
 export const toggleCourseStatus = async (id: string, status: boolean) => {
-  const result = await apiRequest(`/courses/${id}/status`, {
+  // 根据后端API，状态更新通过PUT /courses/{id}实现，状态值：1=启用，2=禁用
+  const statusValue = status ? 1 : 2;
+  const result = await apiRequest(`/courses/${id}`, {
     method: 'PUT',
-    body: JSON.stringify({ status }),
+    body: JSON.stringify({ status: statusValue }),
   });
   return result.data;
 };
@@ -543,60 +554,99 @@ export const fetchCoursesStatisticsSummary = async () => {
   return result.data;
 };
 
-// 排程管理
+// 排程管理 - 修复为正确的 /exams/schedules 路径
 export const fetchSchedules = async (): Promise<Schedule[]> => {
-  const result = await apiRequest('/schedules');
-  return result.data || [];
+  const result = await apiRequest('/exams/schedules');
+  const schedules = result.items || result.data || [];
+
+  // 转换后端字段名到前端期望的字段名
+  return schedules.map((schedule: any) => ({
+    ...schedule,
+    createdAt: schedule.created_at || schedule.createdAt || new Date().toISOString(),
+    updatedAt: schedule.updated_at || schedule.updatedAt || new Date().toISOString(),
+  }));
 };
 
 export const createSchedule = async (schedule: Omit<Schedule, 'id' | 'createdAt' | 'updatedAt'>): Promise<Schedule> => {
-  const result = await apiRequest('/schedules', {
+  const result = await apiRequest('/exams/schedules', {
     method: 'POST',
     body: JSON.stringify(schedule),
   });
-  return result.data;
+  const data = result.data;
+
+  // 转换后端字段名到前端期望的字段名
+  return {
+    ...data,
+    createdAt: data.created_at || data.createdAt || new Date().toISOString(),
+    updatedAt: data.updated_at || data.updatedAt || new Date().toISOString(),
+  };
 };
 
 export const updateSchedule = async (id: string, schedule: Partial<Schedule>): Promise<Schedule> => {
-  const result = await apiRequest(`/schedules/${id}`, {
+  const result = await apiRequest(`/exams/schedules/${id}`, {
     method: 'PUT',
     body: JSON.stringify(schedule),
   });
-  return result.data;
+  const data = result.data;
+
+  // 转换后端字段名到前端期望的字段名
+  return {
+    ...data,
+    createdAt: data.created_at || data.createdAt || new Date().toISOString(),
+    updatedAt: data.updated_at || data.updatedAt || new Date().toISOString(),
+  };
 };
 
 export const deleteSchedule = async (id: string): Promise<void> => {
-  await apiRequest(`/schedules/${id}`, {
+  await apiRequest(`/exams/schedules/${id}`, {
     method: 'DELETE',
   });
 };
 
 export const setScheduleStatus = async (id: string, status: string) => {
-  const result = await apiRequest(`/schedules/${id}/status`, {
+  const result = await apiRequest(`/exams/schedules/${id}/status`, {
     method: 'PUT',
     body: JSON.stringify({ status }),
   });
   return result.data;
 };
 
-export const occupySeat = async (scheduleId: string, studentId: string) => {
-  const result = await apiRequest(`/schedules/${scheduleId}/occupy`, {
+// 考位管理 - 修复路径和参数结构
+export const occupySeat = async (scheduleId: string, count?: number, reason?: string) => {
+  const body = count ? { count, reason } : {};
+  const result = await apiRequest(`/exams/schedules/${scheduleId}/occupy-seat`, {
     method: 'POST',
-    body: JSON.stringify({ studentId }),
+    body: JSON.stringify(body),
   });
-  return result.data;
+  const data = result.data;
+
+  // 转换后端字段名到前端期望的字段名
+  return {
+    ...data,
+    createdAt: data.created_at || data.createdAt || new Date().toISOString(),
+    updatedAt: data.updated_at || data.updatedAt || new Date().toISOString(),
+  };
 };
 
-export const releaseSeat = async (scheduleId: string, studentId: string) => {
-  const result = await apiRequest(`/schedules/${scheduleId}/release`, {
+export const releaseSeat = async (scheduleId: string, count?: number, reason?: string) => {
+  const body = count ? { count, reason } : {};
+  const result = await apiRequest(`/exams/schedules/${scheduleId}/release-seat`, {
     method: 'POST',
-    body: JSON.stringify({ studentId }),
+    body: JSON.stringify(body),
   });
-  return result.data;
+  const data = result.data;
+
+  // 转换后端字段名到前端期望的字段名
+  return {
+    ...data,
+    createdAt: data.created_at || data.createdAt || new Date().toISOString(),
+    updatedAt: data.updated_at || data.updatedAt || new Date().toISOString(),
+  };
 };
 
+// 课程名称列表 - 添加 active_only 查询参数
 export const fetchCourseNamesList = async () => {
-  const result = await apiRequest('/courses/names');
+  const result = await apiRequest('/courses/names?active_only=true');
   return result.data || [];
 };
 

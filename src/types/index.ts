@@ -111,36 +111,52 @@ export interface ChartData {
   date?: string;
 }
 
-// 课程信息（Courses）
+// 课程信息（Courses）- 更新以匹配后端数据结构
 export interface Course {
-  id: string;
+  id: number;                     // 后端返回数字ID
   course_name: string;
-  course_code: string;
+  course_code?: string | null;    // 可能为null
+  course_type?: string | null;    // theoretical/practical/comprehensive
   course_level?: string;
-  description?: string;
-  requirements?: string;
-  exam_requirements?: string;
-  national_standard_ref?: string;
-  standard_fee?: number;
+  description?: string | null;
+  national_standard?: string | null;
+  course_content?: string | null;
+  requirements?: string | null;
+  employment_direction?: string | null;
+  exam_content?: string | null;
+  standard_fee?: number | null;
+  subsidy_standard?: number | null;
   theory_ratio?: number;
   practice_ratio?: number;
-  status: 'active' | 'disabled';
-  createdAt: string;
-  updatedAt: string;
+  status: 1 | 2;                  // 1=正常，2=已停用
+  created_at?: string;            // 后端字段名
+  updated_at?: string;            // 后端字段名
+  createdAt: string;              // 前端转换后的字段名
+  updatedAt: string;              // 前端转换后的字段名
+  // 后端额外返回的统计字段
+  total_schedules?: number;
+  upcoming_schedules?: number | null;
+  total_seats?: number;
+  remaining_seats?: number;
 }
 
-// 考试安排（Schedules）
+// 考试安排（Schedules）- 更新以匹配后端数据结构
 export interface Schedule {
   id: string;
   course_id: string;
-  course_name: string;
-  exam_date: string;      // YYYY-MM-DD
-  exam_time?: string;     // HH:mm:ss
+  course_name?: string;           // 可能通过关联查询返回
+  course_batch?: string;          // 后端有此字段
+  exam_date: string;              // YYYY-MM-DD
+  exam_time?: string;             // HH:mm:ss (兼容旧字段)
+  exam_start_time?: string;       // HH:mm:ss (后端使用此字段)
+  exam_end_time?: string;         // HH:mm:ss (后端使用此字段)
   exam_location: string;
+  exam_mode?: string;             // online/offline/hybrid
   total_seats: number;
   occupied_seats: number;
-  status: 1 | 2 | 3 | 4 | 5; // 草稿/已发布/已取消/已延期/已停用
+  status: 1 | 2 | 3 | 4 | 5 | 6 | 7; // 扩展状态值以匹配后端
   registration_deadline?: string; // YYYY-MM-DD
+  exam_requirements?: string;     // 后端有此字段
   notes?: string;
   notify_on_change?: boolean;
   createdAt: string;
