@@ -442,10 +442,11 @@ export default function Approvals() {
                           }
                           if (
                             inst.target_type === "reward_application" &&
-                            reward_details
+                            reward_details &&
+                            student_details
                           ) {
                             return `${reward_details.student_name} (${
-                              reward_details.course_name || "未知课程"
+                              student_details.course_name || "未知课程"
                             })`;
                           }
                           return "-";
@@ -867,7 +868,7 @@ export default function Approvals() {
                           </label>
                           <div className="mt-1">
                             {reward_details.student_name} (
-                            {reward_details.course_name || "未知课程"})
+                            {student_details?.course_name || "未知课程"})
                           </div>
                         </div>
                         <div>
