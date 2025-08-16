@@ -172,7 +172,22 @@ export default function Approvals() {
 
     } catch (error) {
       console.error("审批处理失败:", error);
-      // 这里可以添加错误提示
+
+      // 显示错误提示
+      const errorMessage = error instanceof Error ? error.message : "审批处理失败";
+
+      // 创建错误提示元素
+      const errorDiv = document.createElement('div');
+      errorDiv.className = 'fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+      errorDiv.textContent = errorMessage;
+      document.body.appendChild(errorDiv);
+
+      // 3秒后自动移除
+      setTimeout(() => {
+        if (document.body.contains(errorDiv)) {
+          document.body.removeChild(errorDiv);
+        }
+      }, 3000);
     }
   };
 
@@ -209,13 +224,60 @@ export default function Approvals() {
     // 根据步骤类型检查权限
     switch (stepKey) {
       case "exam":
-        return user.role === "exam_admin";
+        return user.role === "exam_staff";
       case "finance":
-        // 财务步骤：考务组承担财务职能
-        return user.role === "exam_admin";
+        return user.role === "finance_staff";
+      case "gm":
+        return user.role === "general_manager";
       default:
         return false;
     }
+  };
+
+  // 检查步骤是否可以审批（考虑前置步骤）
+  const canProcessStep = (steps: ApprovalStep[], targetStepKey: string): { canProcess: boolean; reason: string } => {
+    const targetStep = steps.find(step => step.step_key === targetStepKey);
+    if (!targetStep) {
+      return { canProcess: false, reason: "步骤不存在" };
+    }
+
+    // 检查步骤是否已经处理过
+    if (targetStep.status === 3) {
+      return { canProcess: false, reason: "步骤已通过" };
+    }
+    if (targetStep.status === 4) {
+      return { canProcess: false, reason: "步骤已拒绝" };
+    }
+
+    // 如果步骤状态不是1（待审）或2（进行中），则不能处理
+    if (targetStep.status !== 1 && targetStep.status !== 2) {
+      return { canProcess: false, reason: "步骤状态异常" };
+    }
+
+    // 检查是否是当前应该处理的步骤（前置步骤都已完成）
+    const targetStepOrder = targetStep.step_order;
+
+    // 检查所有前置步骤是否都已完成
+    for (const step of steps) {
+      if (step.step_order < targetStepOrder) {
+        if (step.status !== 3) { // 前置步骤未通过
+          return {
+            canProcess: false,
+            reason: `等待前置步骤"${stepNameMap[step.step_key] || step.step_key}"完成`
+          };
+        }
+      }
+    }
+
+    // 检查权限
+    if (!canApproveStep(targetStepKey)) {
+      return {
+        canProcess: false,
+        reason: `需要${stepNameMap[targetStepKey] || targetStepKey}权限`
+      };
+    }
+
+    return { canProcess: true, reason: "" };
   };
 
   useEffect(() => {
@@ -421,10 +483,21 @@ export default function Approvals() {
                                       {getRecruiterName()}
                                     </div>
                                     <div className="text-sm text-muted-foreground">
-                                      {roleTypeMap[
-                                        student_details?.recruiter_role_type ||
-                                          reward_details?.recruiter_role_type
-                                      ] || "未知身份"}
+                                      {(() => {
+                                        // 优先使用 student_details.recruiter_role（字符串格式）
+                                        if (student_details?.recruiter_role) {
+                                          return student_details.recruiter_role;
+                                        }
+                                        // 回退到 user_details.roles 数组格式
+                                        if (item.user_details?.roles && item.user_details.roles.length > 0) {
+                                          const activeRoles = item.user_details.roles
+                                            .filter(role => role.status === 1)
+                                            .map(role => roleTypeMap[role.role_type])
+                                            .filter(Boolean);
+                                          return activeRoles.length > 0 ? activeRoles.join(", ") : "未知身份";
+                                        }
+                                        return "未知身份";
+                                      })()}
                                     </div>
                                   </div>
                                 </TableCell>
@@ -602,7 +675,7 @@ export default function Approvals() {
 
       {/* 审批详情弹窗 */}
       <Sheet open={approvalOpen} onOpenChange={setApprovalOpen}>
-        <SheetContent className="min-w-[600px] sm:max-w-[800px]">
+        <SheetContent className="min-w-[600px] sm:max-w-[800px] overflow-y-auto">
           <SheetHeader>
             <SheetTitle>审批详情</SheetTitle>
           </SheetHeader>
@@ -750,7 +823,26 @@ export default function Approvals() {
                             招生人员
                           </label>
                           <div className="mt-1">
-                            {student_details.recruiter_name || "未知"}
+                            <div className="font-medium">
+                              {student_details.recruiter_name || "未知"}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              {(() => {
+                                // 优先使用 student_details.recruiter_role（字符串格式）
+                                if (student_details.recruiter_role) {
+                                  return student_details.recruiter_role;
+                                }
+                                // 回退到 user_details.roles 数组格式
+                                if (selectedApproval.user_details?.roles && selectedApproval.user_details.roles.length > 0) {
+                                  const activeRoles = selectedApproval.user_details.roles
+                                    .filter(role => role.status === 1)
+                                    .map(role => roleTypeMap[role.role_type])
+                                    .filter(Boolean);
+                                  return activeRoles.length > 0 ? activeRoles.join(", ") : "未知身份";
+                                }
+                                return "未知身份";
+                              })()}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -848,96 +940,106 @@ export default function Approvals() {
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold">审批操作</h3>
                     {(() => {
-                      // 简化逻辑：后端状态机会处理所有流转，前端只需要找到当前可审批的步骤
-                      const getCurrentApprovalStep = () => {
-                        // 查找第一个待审步骤
-                        return steps.find(step => step.status === 1);
-                      };
+                      // 如果审批已完成，显示完成状态
+                      if (inst.status === 3) {
+                        return (
+                          <div className="text-sm text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-950 p-3 rounded-lg">
+                            审批已完成，状态：已通过
+                          </div>
+                        );
+                      }
 
-                      const currentApprovalStep = getCurrentApprovalStep();
+                      if (inst.status === 4) {
+                        return (
+                          <div className="text-sm text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-950 p-3 rounded-lg">
+                            审批已完成，状态：已拒绝
+                          </div>
+                        );
+                      }
 
-                      return inst.status === 2 &&
-                             currentApprovalStep &&
-                             canApproveStep(currentApprovalStep.step_key);
-                    })() && (
-                        (() => {
-                          const currentApprovalStep = steps.find(step => step.status === 1);
+                      if (inst.status === 1) {
+                        return (
+                          <div className="text-sm text-muted-foreground bg-muted p-3 rounded-lg">
+                            审批尚未开始
+                          </div>
+                        );
+                      }
 
-                          return (
-                            <div className="flex gap-2">
-                              <Button
-                                onClick={() =>
-                                  handleApprovalDecision(
-                                    inst.id,
-                                    currentApprovalStep.step_key,
-                                    true
-                                  )
-                                }
-                                className="flex-1"
-                              >
-                                通过 (
-                                {stepNameMap[currentApprovalStep.step_key] || currentApprovalStep.step_key})
-                              </Button>
-                              <Button
-                                variant="destructive"
-                                onClick={() =>
-                                  handleApprovalDecision(
-                                    inst.id,
-                                    currentApprovalStep.step_key,
-                                    false,
-                                    "拒绝"
-                                  )
-                                }
-                                className="flex-1"
-                              >
-                                拒绝 (
-                                {stepNameMap[currentApprovalStep.step_key] || currentApprovalStep.step_key})
-                              </Button>
-                            </div>
-                          );
-                        })()
-                      )}
-                    {(() => {
-                      const currentApprovalStep = steps.find(step => step.status === 1);
+                      // 审批进行中，查找当前待审步骤（状态为1待审或2进行中）
+                      // 按step_order排序，找到第一个未完成的步骤
+                      const currentApprovalStep = steps
+                        .filter(step => step.status === 1 || step.status === 2)
+                        .sort((a, b) => a.step_order - b.step_order)[0];
 
-                      return inst.status === 2 &&
-                             currentApprovalStep &&
-                             !canApproveStep(currentApprovalStep.step_key) && (
-                        <div className="text-sm text-orange-600 bg-orange-50 dark:text-orange-400 dark:bg-orange-950 p-3 rounded-lg">
-                          当前步骤需要{" "}
-                          {stepNameMap[currentApprovalStep.step_key] || currentApprovalStep.step_key}{" "}
-                          权限才能审批
-                        </div>
-                      );
-                    })()}
-                    {(() => {
-                      const currentApprovalStep = steps.find(step => step.status === 1);
-
-                      // 如果没有待审步骤，但流程还在进行中，显示等待状态
-                      if (!currentApprovalStep && inst.status === 2) {
+                      if (!currentApprovalStep) {
                         return (
                           <div className="text-sm text-muted-foreground bg-muted p-3 rounded-lg">
                             所有步骤已处理，等待系统更新状态...
                           </div>
                         );
                       }
-                      return null;
+
+                      // 检查当前步骤是否可以处理
+                      const { canProcess, reason } = canProcessStep(steps, currentApprovalStep.step_key);
+
+                      if (canProcess) {
+                        // 可以处理，显示审批按钮
+                        return (
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={() =>
+                                handleApprovalDecision(
+                                  inst.id,
+                                  currentApprovalStep.step_key,
+                                  true
+                                )
+                              }
+                              className="flex-1"
+                            >
+                              通过 ({stepNameMap[currentApprovalStep.step_key] || currentApprovalStep.step_key})
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              onClick={() =>
+                                handleApprovalDecision(
+                                  inst.id,
+                                  currentApprovalStep.step_key,
+                                  false,
+                                  "拒绝"
+                                )
+                              }
+                              className="flex-1"
+                            >
+                              拒绝 ({stepNameMap[currentApprovalStep.step_key] || currentApprovalStep.step_key})
+                            </Button>
+                          </div>
+                        );
+                      } else {
+                        // 不能处理，显示原因
+                        return (
+                          <div className="space-y-2">
+                            <div className="flex gap-2">
+                              <Button
+                                disabled
+                                className="flex-1"
+                              >
+                                通过 ({stepNameMap[currentApprovalStep.step_key] || currentApprovalStep.step_key})
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                disabled
+                                className="flex-1"
+                              >
+                                拒绝 ({stepNameMap[currentApprovalStep.step_key] || currentApprovalStep.step_key})
+                              </Button>
+                            </div>
+                            <div className="text-sm text-orange-600 bg-orange-50 dark:text-orange-400 dark:bg-orange-950 p-3 rounded-lg">
+                              {reason}
+                            </div>
+                          </div>
+                        );
+                      }
                     })()}
-                    {inst.status === 3 && (
-                      <div className="text-sm text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-950 p-3 rounded-lg">
-                        审批已完成，状态：已通过
-                      </div>
-                    )}
-                    {inst.status === 4 && (
-                      <div className="text-sm text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-950 p-3 rounded-lg">
-                        审批已完成，状态：已拒绝
-                      </div>
-                    )}
-                    {inst.status === 1 && (
-                      <div className="text-sm text-muted-foreground bg-muted p-3 rounded-lg">
-                        审批尚未开始
-                      </div>
-                    )}
                   </div>
                 </div>
               );

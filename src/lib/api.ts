@@ -282,7 +282,7 @@ export const apiRequest = async (endpoint: string, options: RequestInit = {}, re
 
       // 其他错误
       console.error(`❌ [${requestId}] 请求失败:`, response.status, errorData);
-      throw new Error(errorData.message || `请求失败: ${response.status}`);
+      throw new Error(errorData.detail || errorData.message || `请求失败: ${response.status}`);
     }
 
     console.log(`✅ [${requestId}] API请求成功:`, normalizedEndpoint, response.status);
@@ -440,10 +440,10 @@ export const deleteReward = async (id: string): Promise<void> => {
   });
 };
 
-export const applyReward = async (rewardData: any): Promise<Reward> => {
-  const result = await apiRequest('/api/v1/rewards/students/apply', {
+export const applyReward = async (rewardId: string, applicationData: any): Promise<Reward> => {
+  const result = await apiRequest(`/api/v1/rewards/students/${rewardId}/apply`, {
     method: 'POST',
-    body: JSON.stringify(rewardData),
+    body: JSON.stringify(applicationData),
   });
   return result.data;
 };
