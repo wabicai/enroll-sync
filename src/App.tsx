@@ -40,8 +40,11 @@ const App = () => {
     // 初始化应用状态
     initialize();
 
-    // 检查认证状态
-    checkTokenRefresh();
+    // 只在非登录页面检查认证状态
+    const currentPath = window.location.pathname;
+    if (currentPath !== '/login' && currentPath !== '/register') {
+      checkTokenRefresh();
+    }
   }, [initialize, checkTokenRefresh]);
 
   return (
