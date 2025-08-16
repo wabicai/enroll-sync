@@ -13,6 +13,13 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const statusLabels = {
+  1: '待考务审核',
+  2: '可申请',
+  3: '申请中',
+  4: '已批准',
+  5: '已拒绝',
+  6: '已发放',
+  // 兼容旧的字符串状态
   pending: '待审核',
   approved: '已审核',
   paid: '已发放',
@@ -104,10 +111,17 @@ export default function Rewards() {
     }
   };
 
-  const getStatusVariant = (status: string) => {
+  const getStatusVariant = (status: string | number) => {
     switch (status) {
+      case 1: return 'outline'; // 待考务审核
+      case 2: return 'secondary'; // 可申请
+      case 3: return 'outline'; // 申请中
+      case 4: return 'secondary'; // 已批准
+      case 5: return 'destructive'; // 已拒绝
+      case 6: return 'default'; // 已发放
+      // 兼容旧的字符串状态
       case 'paid': return 'default';
-      case 'approved': return 'secondary';  
+      case 'approved': return 'secondary';
       case 'pending': return 'outline';
       case 'rejected': return 'destructive';
       default: return 'outline';
