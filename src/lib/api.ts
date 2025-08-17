@@ -485,9 +485,6 @@ export const deleteUser = async (id: string): Promise<void> => {
 };
 
 // 审批管理
-export const fetchApprovals = async (): Promise<Approval[]> => {
-  const result = await apiRequest('/approvals/all');
-  return result.items || result.data || [];
 export const fetchApprovals = async (
   page: number = 1,
   pageSize: number = 20,
@@ -607,7 +604,8 @@ export const updateCourse = async (id: string, course: Partial<Course>): Promise
     method: 'PUT',
     body: JSON.stringify(course),
   });
-  return result.data;
+  // 后端直接返回课程对象，不需要访问 .data 属性
+  return result;
 };
 
 export const deleteCourse = async (id: string): Promise<void> => {
@@ -801,6 +799,7 @@ export const fetchExportRecords = async (): Promise<ExportRecord[]> => {
   return result.data || [];
 };
 
+// ==================== 便捷的API调用方法 ====================
 
 /**
  * 统一的API调用方法，所有业务代码都应该使用这些方法
