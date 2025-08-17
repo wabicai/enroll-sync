@@ -60,11 +60,14 @@ import {
 
 // 招生人员角色类型映射 (对应后端 RoleTypeEnum)
 const recruitmentRoleLabels = {
-  1: "全职招生",
-  2: "兼职招生",
-  3: "兼职负责人",
-  4: "渠道招生",
-  5: "全职负责人",
+  1: "全职招生员",
+  2: "兼职招生员",
+  3: "自由招生员",
+  4: "渠道招生员",
+  5: "团队负责人",
+  6: "总经理",
+  7: "考务组",
+  8: "财务",
 };
 
 // 管理员角色标签 (用于显示，但不在主列表中管理)
@@ -79,6 +82,23 @@ const statusLabels = {
   active: "正常",
   inactive: "停用",
   pending: "待审核",
+  // 兼容后端数字状态（备用）
+  1: "正常",
+  2: "待审核",
+  3: "已拒绝",
+  4: "已禁用",
+};
+
+// 安全的日期格式化函数
+const formatDate = (dateString: string | undefined) => {
+  if (!dateString) return "-";
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "-";
+    return date.toLocaleDateString("zh-CN");
+  } catch {
+    return "-";
+  }
 };
 
 export default function Users() {
@@ -99,14 +119,15 @@ export default function Users() {
   });
   const [detailOpen, setDetailOpen] = useState(false);
   const [selected, setSelected] = useState<User | null>(null);
+  const [editForm, setEditForm] = useState<Partial<User>>({});
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
   const filteredUsers = users.filter((user) => {
     const matchesSearch =
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.phone.includes(searchTerm);
+      (user.real_name && user.real_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (user.email && user.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (user.phone && user.phone.includes(searchTerm));
     const matchesRole =
       roleFilter === "all" || user.role_type?.toString() === roleFilter;
     const matchesStatus =
@@ -240,7 +261,7 @@ export default function Users() {
               <Button
                 onClick={async () => {
                   if (
-                    !addForm.name ||
+                    !addForm.real_name ||
                     !addForm.email ||
                     !addForm.phone ||
                     !addForm.role_type
@@ -406,11 +427,11 @@ export default function Users() {
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar>
-                        <AvatarImage src={user.avatar} alt={user.name} />
-                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                        <AvatarImage src={user.avatar} alt={user.real_name || '用户'} />
+                        <AvatarFallback>{(user.real_name || '用户').charAt(0)}</AvatarFallback>
                       </Avatar>
                       <div>
-                        <div className="font-medium">{user.name}</div>
+                        <div className="font-medium">{user.real_name || '未设置姓名'}</div>
                         <div className="text-sm text-muted-foreground">
                           {user.email}
                         </div>
@@ -421,6 +442,8 @@ export default function Users() {
                     <Badge variant="outline">
                       {user.role_type
                         ? recruitmentRoleLabels[user.role_type]
+                        : user.roles && user.roles.length > 0
+                        ? user.roles[0]
                         : "未设置"}
                     </Badge>
                   </TableCell>
@@ -440,7 +463,7 @@ export default function Users() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    {new Date(user.createdAt).toLocaleDateString("zh-CN")}
+                    {formatDate(user.createdAt)}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-2">
@@ -464,37 +487,23 @@ export default function Users() {
                           </Button>
                         </>
                       )}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => {
-                              setSelected(user);
-                              setDetailOpen(true);
-                            }}
-                          >
-                            查看详情
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={async () => {
-                              const ok = confirm(`确认删除用户 ${user.name} ?`);
-                              if (!ok) return;
-                              const success = await deleteUser(user.id);
-                              if (success)
-                                setUsers((prev) =>
-                                  prev.filter((u) => u.id !== user.id)
-                                );
-                            }}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            删除用户
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setSelected(user);
+                          setEditForm({
+                            real_name: user.real_name,
+                            phone: user.phone,
+                            role_type: user.role_type,
+                            status: user.status,
+                            invitation_code: user.invitation_code,
+                          });
+                          setDetailOpen(true);
+                        }}
+                      >
+                        详情
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -539,28 +548,141 @@ export default function Users() {
         </CardContent>
       </Card>
 
-      {/* 详情对话框 */}
+      {/* 用户编辑对话框 */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>用户详情</DialogTitle>
+            <DialogTitle>编辑用户信息</DialogTitle>
           </DialogHeader>
           {selected && (
-            <div className="grid gap-2 text-sm">
-              <div>姓名：{selected.name}</div>
-              <div>邮箱：{selected.email}</div>
-              <div>手机号：{selected.phone}</div>
-              <div>招生身份：{selected.role_type ? recruitmentRoleLabels[selected.role_type] : "未设置"}</div>
-              <div>邀请码：{selected.invitation_code || "-"}</div>
-              <div>状态：{statusLabels[selected.status]}</div>
-              <div>
-                创建时间：{new Date(selected.createdAt).toLocaleString("zh-CN")}
+            <div className="grid gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="real_name">真实姓名</Label>
+                <Input
+                  id="real_name"
+                  value={editForm.real_name || ""}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, real_name: e.target.value })
+                  }
+                />
               </div>
-              <div>
-                更新时间：{new Date(selected.updatedAt).toLocaleString("zh-CN")}
+              <div className="grid gap-2">
+                <Label htmlFor="phone">手机号</Label>
+                <Input
+                  id="phone"
+                  value={editForm.phone || ""}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, phone: e.target.value })
+                  }
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="role_type">招生身份</Label>
+                <Select
+                  value={editForm.role_type?.toString() || ""}
+                  onValueChange={(v) =>
+                    setEditForm({ ...editForm, role_type: parseInt(v) })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="选择招生身份" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(recruitmentRoleLabels).map(
+                      ([value, label]) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      )
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="status">状态</Label>
+                <Select
+                  value={editForm.status || ""}
+                  onValueChange={(v) =>
+                    setEditForm({ ...editForm, status: v as any })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="选择状态" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">正常</SelectItem>
+                    <SelectItem value="pending">待审核</SelectItem>
+                    <SelectItem value="inactive">停用</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="invitation_code">邀请码</Label>
+                <Input
+                  id="invitation_code"
+                  value={editForm.invitation_code || ""}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, invitation_code: e.target.value })
+                  }
+                  placeholder="输入邀请码（可选）"
+                />
+              </div>
+              <div className="text-sm text-muted-foreground">
+                <div>创建时间：{formatDate(selected.createdAt)}</div>
+                <div>更新时间：{formatDate(selected.updatedAt)}</div>
               </div>
             </div>
           )}
+          <DialogFooter className="flex justify-between">
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                if (!selected) return;
+                const ok = confirm(`确认删除用户 ${selected.real_name || selected.email} ?`);
+                if (!ok) return;
+                try {
+                  const success = await deleteUser(selected.id);
+                  if (success) {
+                    setUsers((prev) => prev.filter((u) => u.id !== selected.id));
+                    setDetailOpen(false);
+                  }
+                } catch (error) {
+                  console.error("删除用户失败:", error);
+                  alert("删除用户失败，请重试");
+                }
+              }}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              删除用户
+            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setDetailOpen(false)}
+              >
+                取消
+              </Button>
+              <Button
+                onClick={async () => {
+                  if (!selected) return;
+                  try {
+                    const updated = await updateUser(selected.id, editForm);
+                    if (updated) {
+                      setUsers((prev) =>
+                        prev.map((u) => (u.id === selected.id ? { ...u, ...editForm } : u))
+                      );
+                      setDetailOpen(false);
+                    }
+                  } catch (error) {
+                    console.error("更新用户失败:", error);
+                    alert("更新用户失败，请重试");
+                  }
+                }}
+              >
+                保存
+              </Button>
+            </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

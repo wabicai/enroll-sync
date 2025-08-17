@@ -19,20 +19,21 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Label } from '@/components/ui/label';
 
 const statusLabels = {
-  enrolled: '已报名',
-  studying: '在读',
-  graduated: '已毕业',
-  dropped: '退学',
-  suspended: '休学'
+  1: '正常',
+  2: '已退学',
+  3: '已毕业'
 };
 
 const statusVariants = {
-  enrolled: 'secondary',
-  studying: 'default', 
-  graduated: 'default',
-  dropped: 'destructive',
-  suspended: 'outline'
+  1: 'default',
+  2: 'destructive',
+  3: 'secondary'
 } as const;
+
+const genderLabels = {
+  1: '男',
+  2: '女'
+};
 
 export default function Students() {
   const [students, setStudents] = useState<Student[]>([]);
@@ -61,16 +62,16 @@ export default function Students() {
   }, []);
 
   const [addForm, setAddForm] = useState<Partial<Student>>({
-    status: 'enrolled',
-    paymentStatus: 'unpaid'
+    status: 1,
+    gender: 1
   });
 
   const filteredStudents = students.filter(student => {
     const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         student.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         student.phone.includes(searchTerm);
-    const matchesStatus = statusFilter === 'all' || student.status === statusFilter;
-    
+                         student.phone.includes(searchTerm) ||
+                         (student.student_number && student.student_number.includes(searchTerm));
+    const matchesStatus = statusFilter === 'all' || student.status.toString() === statusFilter;
+
     return matchesSearch && matchesStatus;
   });
 
@@ -86,29 +87,32 @@ export default function Students() {
   };
 
   const handleAddStudent = async () => {
-    if (!addForm.name || !addForm.email || !addForm.phone) {
+    if (!addForm.name || !addForm.phone) {
       alert('请填写必填字段');
       return;
     }
 
     try {
       const created = await createStudent({
+        student_number: addForm.student_number || '',
         name: addForm.name!,
-        email: addForm.email!,
         phone: addForm.phone!,
-        course: addForm.course || '',
-        status: (addForm.status as Student['status']) || 'enrolled',
-        paymentStatus: (addForm.paymentStatus as Student['paymentStatus']) || 'unpaid',
-        enrollmentDate: addForm.enrollmentDate || new Date().toISOString().split('T')[0],
-        tuitionFee: addForm.tuitionFee || 0,
-        paidAmount: addForm.paidAmount || 0,
-        avatar: addForm.avatar,
-        idCard: addForm.idCard
+        gender: addForm.gender || 1,
+        education: addForm.education || '',
+        major: addForm.major,
+        work_unit: addForm.work_unit,
+        job_position: addForm.job_position,
+        work_years: addForm.work_years,
+        employment_intention: addForm.employment_intention,
+        notes: addForm.notes,
+        status: addForm.status || 1,
+        created_by: 1, // 默认创建者ID
+        last_modified_by: 1
       } as Omit<Student, 'id' | 'createdAt' | 'updatedAt'>);
-      
+
       setStudents(prev => [created, ...prev]);
       setOpenAdd(false);
-      setAddForm({ status: 'enrolled', paymentStatus: 'unpaid' });
+      setAddForm({ status: 1, gender: 1 });
     } catch (error) {
       console.error('创建学员失败:', error);
       alert('创建学员失败，请重试');
@@ -141,80 +145,88 @@ export default function Students() {
             <div className="grid gap-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
+                  <Label>学员编号</Label>
+                  <Input
+                    value={addForm.student_number || ''}
+                    onChange={(e) => setAddForm({ ...addForm, student_number: e.target.value })}
+                    placeholder="学员编号"
+                  />
+                </div>
+                <div>
                   <Label>姓名 *</Label>
-                  <Input 
-                    value={addForm.name || ''} 
-                    onChange={(e) => setAddForm({ ...addForm, name: e.target.value })} 
+                  <Input
+                    value={addForm.name || ''}
+                    onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
                     placeholder="学员姓名"
                   />
                 </div>
-                <div>
-                  <Label>手机号 *</Label>
-                  <Input 
-                    value={addForm.phone || ''} 
-                    onChange={(e) => setAddForm({ ...addForm, phone: e.target.value })} 
-                    placeholder="手机号码"
-                  />
-                </div>
-              </div>
-              <div>
-                <Label>邮箱 *</Label>
-                <Input 
-                  value={addForm.email || ''} 
-                  onChange={(e) => setAddForm({ ...addForm, email: e.target.value })} 
-                  placeholder="邮箱地址"
-                />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label>课程</Label>
-                  <Input 
-                    value={addForm.course || ''} 
-                    onChange={(e) => setAddForm({ ...addForm, course: e.target.value })} 
-                    placeholder="所学课程"
+                  <Label>手机号 *</Label>
+                  <Input
+                    value={addForm.phone || ''}
+                    onChange={(e) => setAddForm({ ...addForm, phone: e.target.value })}
+                    placeholder="手机号码"
                   />
                 </div>
                 <div>
-                  <Label>状态</Label>
-                  <Select value={addForm.status || 'enrolled'} onValueChange={(v) => setAddForm({ ...addForm, status: v as Student['status'] })}>
+                  <Label>性别</Label>
+                  <Select value={addForm.gender?.toString() || '1'} onValueChange={(v) => setAddForm({ ...addForm, gender: Number(v) })}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {Object.entries(statusLabels).map(([value, label]) => (
+                      {Object.entries(genderLabels).map(([value, label]) => (
                         <SelectItem key={value} value={value}>{label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label>学费</Label>
-                  <Input 
-                    type="number" 
-                    value={addForm.tuitionFee || ''} 
-                    onChange={(e) => setAddForm({ ...addForm, tuitionFee: Number(e.target.value) })} 
-                    placeholder="学费金额"
+                  <Label>学历</Label>
+                  <Input
+                    value={addForm.education || ''}
+                    onChange={(e) => setAddForm({ ...addForm, education: e.target.value })}
+                    placeholder="学历"
                   />
                 </div>
                 <div>
-                  <Label>已付金额</Label>
-                  <Input 
-                    type="number" 
-                    value={addForm.paidAmount || ''} 
-                    onChange={(e) => setAddForm({ ...addForm, paidAmount: Number(e.target.value) })} 
-                    placeholder="已付金额"
+                  <Label>专业</Label>
+                  <Input
+                    value={addForm.major || ''}
+                    onChange={(e) => setAddForm({ ...addForm, major: e.target.value })}
+                    placeholder="专业"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>工作单位</Label>
+                  <Input
+                    value={addForm.work_unit || ''}
+                    onChange={(e) => setAddForm({ ...addForm, work_unit: e.target.value })}
+                    placeholder="工作单位"
                   />
                 </div>
                 <div>
-                  <Label>报名日期</Label>
-                  <Input 
-                    type="date" 
-                    value={addForm.enrollmentDate || ''} 
-                    onChange={(e) => setAddForm({ ...addForm, enrollmentDate: e.target.value })} 
+                  <Label>职位</Label>
+                  <Input
+                    value={addForm.job_position || ''}
+                    onChange={(e) => setAddForm({ ...addForm, job_position: e.target.value })}
+                    placeholder="职位"
                   />
                 </div>
+              </div>
+              <div>
+                <Label>备注</Label>
+                <Input
+                  value={addForm.notes || ''}
+                  onChange={(e) => setAddForm({ ...addForm, notes: e.target.value })}
+                  placeholder="备注信息"
+                />
               </div>
             </div>
             <DialogFooter>
@@ -233,7 +245,7 @@ export default function Students() {
           <CardContent>
             <div className="text-2xl font-bold">{students.length}</div>
             <p className="text-xs text-muted-foreground">
-              在读 {students.filter(s => s.status === 'studying').length} 人
+              正常 {students.filter(s => s.status === 1).length} 人
             </p>
           </CardContent>
         </Card>
@@ -243,31 +255,31 @@ export default function Students() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {students.filter(s => s.status === 'graduated').length}
+              {students.filter(s => s.status === 3).length}
             </div>
             <p className="text-xs text-muted-foreground">完成学业的学员</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">新报名</CardTitle>
+            <CardTitle className="text-sm font-medium">已退学</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {students.filter(s => s.status === 'enrolled').length}
+              {students.filter(s => s.status === 2).length}
             </div>
-            <p className="text-xs text-muted-foreground">待开课的学员</p>
+            <p className="text-xs text-muted-foreground">退学的学员</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">收入总计</CardTitle>
+            <CardTitle className="text-sm font-medium">活跃学员</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ¥{students.reduce((sum, s) => sum + (s.paidAmount || 0), 0).toLocaleString()}
+              {students.filter(s => s.status === 1).length}
             </div>
-            <p className="text-xs text-muted-foreground">已收取的学费</p>
+            <p className="text-xs text-muted-foreground">正常状态的学员</p>
           </CardContent>
         </Card>
       </div>
@@ -318,11 +330,9 @@ export default function Students() {
             <TableHeader>
               <TableRow>
                 <TableHead>学员</TableHead>
-                <TableHead>课程</TableHead>
                 <TableHead>状态</TableHead>
-                <TableHead>缴费状态</TableHead>
                 <TableHead>联系方式</TableHead>
-                <TableHead>报名时间</TableHead>
+                <TableHead>创建时间</TableHead>
                 <TableHead className="text-right">操作</TableHead>
               </TableRow>
             </TableHeader>
@@ -332,17 +342,15 @@ export default function Students() {
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar>
-                        <AvatarImage src={student.avatar} alt={student.name} />
                         <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
                       </Avatar>
                       <div>
                         <div className="font-medium">{student.name}</div>
-                        <div className="text-sm text-muted-foreground">{student.email}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {student.student_number} | {genderLabels[student.gender]} | {student.education}
+                        </div>
                       </div>
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{student.course || '未指定'}</Badge>
                   </TableCell>
                   <TableCell>
                     <Badge variant={statusVariants[student.status] as any}>
@@ -351,67 +359,31 @@ export default function Students() {
                   </TableCell>
                   <TableCell>
                     <div className="text-sm">
-                      <div>¥{(student.paidAmount || 0).toLocaleString()}</div>
-                      <div className="text-xs text-muted-foreground">
-                        / ¥{(student.tuitionFee || 0).toLocaleString()}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm">
                       <div>{student.phone}</div>
+                      {student.work_unit && (
+                        <div className="text-xs text-muted-foreground">{student.work_unit}</div>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>
-                    {new Date(student.enrollmentDate || student.createdAt).toLocaleDateString('zh-CN')}
+                    {new Date(student.createdAt).toLocaleDateString('zh-CN')}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-2">
-                      {student.status === 'enrolled' && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleStatusChange(student.id, 'studying')}
-                          className="h-8 w-8 p-0"
-                        >
-                          <UserCheck className="h-4 w-4 text-green-600" />
-                        </Button>
-                      )}
-                      {student.status === 'studying' && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleStatusChange(student.id, 'graduated')}
-                          className="h-8 w-8 p-0"
-                        >
-                          <Check className="h-4 w-4 text-blue-600" />
-                        </Button>
-                      )}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => { setSelected(student); setDetailOpen(true); }}>
-                            查看详情
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleStatusChange(student.id, 'suspended')}>
-                            暂停学习
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleStatusChange(student.id, 'dropped')}>
-                            标记退学
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => { setSelected(student); setDetailOpen(true); }}
+                      >
+                        详情
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
               ))}
               {filteredStudents.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground">
+                  <TableCell colSpan={5} className="text-center text-muted-foreground">
                     未找到匹配的学员
                   </TableCell>
                 </TableRow>
@@ -429,14 +401,18 @@ export default function Students() {
           </DialogHeader>
           {selected && (
             <div className="grid gap-2 text-sm">
+              <div>学员编号：{selected.student_number}</div>
               <div>姓名：{selected.name}</div>
-              <div>邮箱：{selected.email}</div>
               <div>手机号：{selected.phone}</div>
-              <div>课程：{selected.course || '未指定'}</div>
+              <div>性别：{genderLabels[selected.gender]}</div>
+              <div>学历：{selected.education}</div>
+              {selected.major && <div>专业：{selected.major}</div>}
+              {selected.work_unit && <div>工作单位：{selected.work_unit}</div>}
+              {selected.job_position && <div>职位：{selected.job_position}</div>}
+              {selected.work_years && <div>工作年限：{selected.work_years}年</div>}
+              {selected.employment_intention && <div>就业意向：{selected.employment_intention}</div>}
+              {selected.notes && <div>备注：{selected.notes}</div>}
               <div>状态：{statusLabels[selected.status]}</div>
-              <div>学费：¥{(selected.tuitionFee || 0).toLocaleString()}</div>
-              <div>已付：¥{(selected.paidAmount || 0).toLocaleString()}</div>
-              <div>报名时间：{new Date(selected.enrollmentDate || selected.createdAt).toLocaleString('zh-CN')}</div>
               <div>创建时间：{new Date(selected.createdAt).toLocaleString('zh-CN')}</div>
               <div>更新时间：{new Date(selected.updatedAt).toLocaleString('zh-CN')}</div>
             </div>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ExamEnrollmentDialog } from '@/components/ExamEnrollmentDialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -54,6 +55,10 @@ export default function Exams() {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  
+  // 学员名单对话框状态
+  const [enrollmentDialogOpen, setEnrollmentDialogOpen] = useState(false);
+  const [selectedExamForEnrollment, setSelectedExamForEnrollment] = useState<Exam | null>(null);
 
   const filteredExams = exams.filter(exam => {
     const matchesSearch = exam.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -307,7 +312,14 @@ export default function Exams() {
                           <DropdownMenuItem>查看详情</DropdownMenuItem>
                           <DropdownMenuItem>编辑考试</DropdownMenuItem>
                           <DropdownMenuItem>考位管理</DropdownMenuItem>
-                          <DropdownMenuItem>学员名单</DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => {
+                              setSelectedExamForEnrollment(exam);
+                              setEnrollmentDialogOpen(true);
+                            }}
+                          >
+                            学员名单
+                          </DropdownMenuItem>
                           <DropdownMenuItem>成绩录入</DropdownMenuItem>
                           <DropdownMenuItem className="text-destructive">
                             取消考试
@@ -328,6 +340,17 @@ export default function Exams() {
           )}
         </CardContent>
       </Card>
+      
+      {/* 学员名单对话框 */}
+      {selectedExamForEnrollment && (
+        <ExamEnrollmentDialog
+          open={enrollmentDialogOpen}
+          onOpenChange={setEnrollmentDialogOpen}
+          scheduleId={selectedExamForEnrollment.id}
+          scheduleName={selectedExamForEnrollment.title}
+          examDate={selectedExamForEnrollment.date}
+        />
+      )}
     </div>
   );
 }

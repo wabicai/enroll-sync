@@ -153,16 +153,26 @@ export const NotificationDropdown: React.FC = () => {
             notifications.map((notification) => (
               <DropdownMenuItem
                 key={notification.id}
-                className="p-0 cursor-pointer transition-all hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                className={`p-0 cursor-pointer transition-all hover:bg-gray-50 dark:hover:bg-gray-800/50 ${
+                  !notification.is_read ? 'bg-blue-50/30 dark:bg-blue-900/10' : ''
+                }`}
                 onClick={() => handleNotificationClick(notification)}
               >
-                <div className="flex items-start w-full p-4 border-l-3 border-l-blue-500">
+                <div className={`flex items-start w-full p-4 border-l-3 ${
+                  !notification.is_read ? 'border-l-blue-500' : 'border-l-gray-200 dark:border-l-gray-700'
+                }`}>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between mb-1">
-                      <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 line-clamp-1">
+                      <h4 className={`text-sm font-medium line-clamp-1 ${
+                        !notification.is_read 
+                          ? 'text-gray-900 dark:text-gray-100' 
+                          : 'text-gray-600 dark:text-gray-400'
+                      }`}>
                         {notification.title}
                       </h4>
-                      <div className="w-2 h-2 bg-blue-500 rounded-full ml-2 flex-shrink-0 mt-1"></div>
+                      {!notification.is_read && (
+                        <div className="w-2 h-2 bg-blue-500 rounded-full ml-2 flex-shrink-0 mt-1"></div>
+                      )}
                     </div>
 
                     <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 leading-relaxed mb-2">

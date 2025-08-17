@@ -8,11 +8,15 @@ export type RecruitmentIdentity = 'part_time' | 'full_time' | 'team_leader' | 'r
 export interface User {
   id: string;
   name: string;
+  real_name?: string; // 真实姓名
   email: string;
   phone: string;
   idCard?: string;
   role: UserRole;
   identity?: RecruitmentIdentity;
+  role_type?: number; // 主要角色类型数字
+  roles?: string[]; // 角色名称列表
+  primary_role?: string; // 主要角色名称
   avatar?: string;
   status: 'active' | 'inactive' | 'pending';
   createdAt: string;
@@ -20,28 +24,31 @@ export interface User {
   teamId?: string;
   parentId?: string; // 上级ID
   tags?: string[]; // 申请时填写的标签/渠道
+  invitation_code?: string; // 邀请码
 }
 
 // 学员工种类型
 export type StudentCategory = 'safety_officer' | 'electrician' | 'welder' | 'crane_operator' | 'other';
 
-// 学员信息
+// 学员信息 - 与后端ExamStudent模型保持一致
 export interface Student {
   id: string;
+  student_number: string;
   name: string;
-  idCard: string;
   phone: string;
-  category: StudentCategory;
-  status: 'pending' | 'approved' | 'rejected' | 'graduated';
-  paymentStatus: 'unpaid' | 'partial' | 'paid';
-  amount: number;
-  paidAmount: number;
-  recruiterId: string;
-  recruiterName: string;
-  tags: string[];
+  gender: number; // 性别：1男 2女
+  education: string;
+  major?: string;
+  work_unit?: string;
+  job_position?: string;
+  work_years?: number;
+  employment_intention?: string;
+  notes?: string;
+  status: number; // 学员状态：1正常 2已退学 3已毕业
+  created_by: number;
+  last_modified_by?: number;
   createdAt: string;
   updatedAt: string;
-  examId?: string;
 }
 
 // 考试信息
@@ -161,6 +168,85 @@ export interface Schedule {
   notify_on_change?: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+// 考试报名学员信息
+export interface ExamEnrollment {
+  // 学员基本信息
+  student_id: number;
+  student_number: string;
+  student_name: string;
+  phone: string;
+  gender: number; // 1男 2女
+  education: string;
+  
+  // 报考记录信息
+  enrollment_id: number;
+  enrollment_number: string;
+  course_name: string;
+  course_level: string;
+  course_batch: string;
+  registration_date: string;
+  
+  // 审核和状态信息
+  enrollment_status: number; // 1正常 2退学 3完成
+  qualification_status: number; // 1待审核 2已通过 3不符合
+  materials_complete: boolean;
+  
+  // 考试相关信息
+  preliminary_result?: number; // 1未考 2通过 3未通过
+  makeup_exam_time?: string;
+  makeup_exam_result?: number;
+  certificate_status: number; // 1未发放 2已发放 3申请中
+  certificate_number?: string;
+  
+  // 其他信息
+  recruiter_id?: number;
+  recruiter_name?: string;
+  channel?: string;
+  is_veteran_conversion: boolean;
+  follow_up: boolean;
+  
+  // 时间信息
+  created_at: string;
+  updated_at: string;
+}
+
+// 考试报名学员列表响应
+export interface ExamEnrollmentListResponse {
+  items: ExamEnrollment[];
+  total: number;
+  page: number;
+  page_size: number;
+  pages: number;
+  statistics?: {
+    total_enrollments: number;
+    status_distribution: {
+      normal: number;
+      dropout: number;
+      completed: number;
+    };
+    qualification_distribution: {
+      pending: number;
+      approved: number;
+      rejected: number;
+    };
+    exam_result_distribution: {
+      not_taken: number;
+      passed: number;
+      failed: number;
+    };
+    certificate_distribution: {
+      not_issued: number;
+      issued: number;
+      applying: number;
+    };
+    other_stats: {
+      materials_complete: number;
+      veteran_conversion: number;
+      follow_up_needed: number;
+    };
+  };
 }
 
 // 升级申请（Approvals - Upgrades）
