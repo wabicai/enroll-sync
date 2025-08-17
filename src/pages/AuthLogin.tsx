@@ -20,35 +20,43 @@ export default function AuthLogin() {
     e.preventDefault();
     setLoading(true);
     setError('');
+
     try {
       const res = await loginAdmin(username.trim(), password);
+
+      // 只有在成功获取到响应后才进行后续操作
+      if (!res || !res.token || !res.user) {
+        throw new Error('登录响应数据不完整');
+      }
+
       // store tokens and user
       setTokens(res.token.access_token, res.token.refresh_token);
-      
+
       // 根据后端用户角色映射前端角色
       const mapUserRole = (backendRoles: any[]) => {
         if (!backendRoles || backendRoles.length === 0) {
           return 'system_admin'; // 默认角色
         }
-        
+
         // 获取第一个激活的角色
         const activeRole = backendRoles.find((role: any) => role.status === 1);
         if (!activeRole) {
           return 'system_admin';
         }
-        
+
         // 根据后端角色类型映射前端角色
         switch (activeRole.role_type) {
           case 6: // 总经理
             return 'general_manager';
-          case 7: // 考务组（同时承担财务职能）
-          case 8: // 财务（与考务组是同一人）
-            return 'exam_admin';
+          case 7: // 考务组
+            return 'exam_staff';
+          case 8: // 财务组
+            return 'finance_staff';
           default:
             return 'system_admin'; // 其他角色暂时都映射为系统管理员
         }
       };
-      
+
       // Map backend CurrentUser to frontend User type
       const mappedUser = {
         id: String(res.user.id),
@@ -61,10 +69,16 @@ export default function AuthLogin() {
         updatedAt: new Date().toISOString(),
       };
       setUser(mappedUser as any);
+
+      // 只有在所有状态都设置成功后才进行重定向
       const from = (location.state as any)?.from?.pathname || '/';
       navigate(from, { replace: true });
+
     } catch (err: any) {
-      setError(err?.message || '登录失败');
+      console.error('登录失败:', err);
+      // 登录失败时，确保不设置任何认证状态，只显示错误信息
+      setError(err?.message || '登录失败，请检查用户名和密码');
+      // 不进行任何重定向操作
     } finally {
       setLoading(false);
     }

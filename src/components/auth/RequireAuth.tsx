@@ -31,7 +31,9 @@ export default function RequireAuth({ children }: { children: JSX.Element }) {
       }
     };
 
-    checkAuth();
+    // 添加延迟，避免在登录过程中立即触发重定向
+    const timer = setTimeout(checkAuth, 100);
+    return () => clearTimeout(timer);
   }, [isLoggedIn, checkTokenRefresh]);
 
   // 正在检查认证状态
