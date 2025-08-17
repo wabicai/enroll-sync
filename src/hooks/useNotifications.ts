@@ -1,46 +1,26 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import type { NotificationItem } from '@/types';
-import { getCurrentMode, API_CONFIG } from '@/hooks/useApi';
-import { api } from '@/lib/api';
+import { getCurrentMode } from '@/hooks/useApi';
+import {
+  fetchRecentNotifications,
+  fetchUnreadNotificationCount,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  deleteNotification as deleteNotificationApi
+} from '@/lib/api';
 
 export const useNotifications = () => {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [connected, setConnected] = useState(false);
   const { toast } = useToast();
-  const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const reconnectAttempts = useRef(0);
-  const maxReconnectAttempts = 5;
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const unreadCountIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastNotificationTimeRef = useRef<string | null>(null);
 
-  // 获取认证token (WebSocket需要)
-  const getAuthToken = () => {
-    try {
-      const authData = localStorage.getItem('auth');
-      if (authData) {
-        const parsed = JSON.parse(authData);
-        return parsed.token?.access_token;
-      }
-    } catch (error) {
-      console.error('获取token失败:', error);
-    }
-    return null;
-  };
-
-  // 获取WebSocket URL
-  const getWebSocketUrl = () => {
-    const mode = getCurrentMode();
-    if (mode === 'mock') return null;
-    
-    const baseUrl = mode === 'local' ? API_CONFIG.LOCAL : API_CONFIG.PRODUCTION;
-    const wsUrl = baseUrl.replace('http://', 'ws://').replace('https://', 'wss://');
-    return wsUrl;
-  };
-
-  // 获取通知列表
-  const fetchNotifications = useCallback(async () => {
+  // 获取最新通知 (HTTP轮询)
+  const fetchRecentNotificationsData = useCallback(async (useTimestamp: boolean = false) => {
     const mode = getCurrentMode();
     if (mode === 'mock') {
       // 使用mock数据
@@ -81,66 +61,126 @@ export const useNotifications = () => {
       return;
     }
 
-    setLoading(true);
     try {
-      // 使用统一的API调用，自动处理token和错误，自动添加/api/v1前缀
-      const data = await api.get('notifications/');
-      setNotifications(data.items || []);
+      const since = useTimestamp ? lastNotificationTimeRef.current : undefined;
+      // 只获取未读通知
+      const data = await fetchRecentNotifications(10, since, true);
 
-      // 获取未读数量
-      const unreadData = await api.get('notifications/unread-count');
-      setUnreadCount(unreadData.count || 0);
+      if (useTimestamp && since) {
+        // 增量更新：只添加新通知
+        if (data.items && data.items.length > 0) {
+          setNotifications(prev => {
+            const newNotifications = data.items.filter(newItem =>
+              !prev.some(existingItem => existingItem.id === newItem.id)
+            );
 
+            // 显示新通知的toast
+            newNotifications.forEach(notification => {
+              toast({
+                title: notification.title,
+                description: notification.content,
+                duration: 5000,
+              });
+            });
+
+            return [...newNotifications, ...prev];
+          });
+
+          // 更新最新时间戳
+          const latestTime = data.items[0]?.created_at;
+          if (latestTime) {
+            lastNotificationTimeRef.current = latestTime;
+          }
+        }
+      } else {
+        // 全量更新：初始加载，只显示未读通知
+        setNotifications(data.items || []);
+
+        // 设置最新时间戳
+        if (data.items && data.items.length > 0) {
+          lastNotificationTimeRef.current = data.items[0].created_at;
+        }
+      }
     } catch (error) {
       console.error('获取通知失败:', error);
-    } finally {
-      setLoading(false);
     }
-  }, []);
+  }, [toast]);
+
+  // 获取未读数量
+  const fetchUnreadCount = useCallback(async () => {
+    const mode = getCurrentMode();
+    if (mode === 'mock') {
+      setUnreadCount(notifications.filter(n => !n.is_read).length);
+      return;
+    }
+
+    try {
+      const data = await fetchUnreadNotificationCount();
+      setUnreadCount(data.count || 0);
+    } catch (error) {
+      console.error('获取未读数量失败:', error);
+    }
+  }, [notifications]);
 
   // 标记为已读
   const markAsRead = useCallback(async (id: number) => {
     const mode = getCurrentMode();
     if (mode === 'mock') {
-      setNotifications(prev => 
-        prev.map(n => n.id === id ? { ...n, is_read: true } : n)
-      );
+      // 从列表中移除已读通知，因为我们只显示未读通知
+      setNotifications(prev => prev.filter(n => n.id !== id));
       setUnreadCount(prev => Math.max(0, prev - 1));
       return;
     }
 
     try {
-      // 使用统一的API调用，路径更简洁
-      await api.post(`notifications/${id}/read`);
+      await markNotificationAsRead(id);
 
-      setNotifications(prev =>
-        prev.map(n => n.id === id ? { ...n, is_read: true } : n)
-      );
+      // 从列表中移除已读通知，因为我们只显示未读通知
+      setNotifications(prev => prev.filter(n => n.id !== id));
       setUnreadCount(prev => Math.max(0, prev - 1));
     } catch (error) {
       console.error('标记已读失败:', error);
+      toast({
+        title: '操作失败',
+        description: '标记已读失败，请重试',
+        variant: 'destructive',
+        duration: 3000,
+      });
     }
-  }, []);
+  }, [toast]);
 
   // 标记全部为已读
   const markAllAsRead = useCallback(async () => {
     const mode = getCurrentMode();
     if (mode === 'mock') {
-      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+      // 清空通知列表，因为我们只显示未读通知
+      setNotifications([]);
       setUnreadCount(0);
       return;
     }
 
     try {
-      // 使用统一的API调用，路径更简洁
-      await api.post('notifications/read-all');
+      await markAllNotificationsAsRead();
 
-      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+      // 清空通知列表，因为我们只显示未读通知
+      setNotifications([]);
       setUnreadCount(0);
+
+      toast({
+        title: '操作成功',
+        description: '所有通知已标记为已读',
+        duration: 3000,
+      });
     } catch (error) {
       console.error('标记全部已读失败:', error);
+      toast({
+        title: '操作失败',
+        description: '标记全部已读失败，请重试',
+        variant: 'destructive',
+        duration: 3000,
+      });
     }
-  }, []);
+  }, [toast]);
 
   // 删除通知
   const deleteNotification = useCallback(async (id: number) => {
@@ -158,8 +198,7 @@ export const useNotifications = () => {
     }
 
     try {
-      // 使用统一的API调用，路径更简洁
-      await api.delete(`notifications/${id}`);
+      await deleteNotificationApi(id);
 
       setNotifications(prev => {
         const notification = prev.find(n => n.id === id);
@@ -174,104 +213,66 @@ export const useNotifications = () => {
     }
   }, []);
 
-  // WebSocket连接
-  const connectWebSocket = useCallback(() => {
+  // 开始轮询
+  const startPolling = useCallback(() => {
     const mode = getCurrentMode();
     if (mode === 'mock') return;
 
-    const wsUrl = getWebSocketUrl();
-    if (!wsUrl) return;
+    // 轮询获取最新通知 (30秒间隔)
+    pollingIntervalRef.current = setInterval(() => {
+      fetchRecentNotificationsData(true); // 使用时间戳增量获取
+    }, 30000);
 
-    const token = getAuthToken();
-    if (!token) return;
+    // 轮询获取未读数量 (15秒间隔)
+    unreadCountIntervalRef.current = setInterval(() => {
+      fetchUnreadCount();
+    }, 15000);
 
-    try {
-      const ws = new WebSocket(`${wsUrl}/ws/notifications?token=${token}`);
-      
-      ws.onopen = () => {
-        console.log('WebSocket连接成功');
-        setConnected(true);
-        reconnectAttempts.current = 0;
-      };
+    console.log('📡 通知轮询已启动');
+  }, [fetchRecentNotificationsData, fetchUnreadCount]);
 
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          
-          if (data.type === 'notification') {
-            // 新通知
-            setNotifications(prev => [data, ...prev]);
-            setUnreadCount(prev => prev + 1);
-            
-            // 显示toast通知
-            toast({
-              title: data.title,
-              description: data.content,
-              duration: 5000,
-            });
-          }
-        } catch (error) {
-          console.error('解析WebSocket消息失败:', error);
-        }
-      };
-
-      ws.onclose = () => {
-        console.log('WebSocket连接关闭');
-        setConnected(false);
-        
-        // 自动重连
-        if (reconnectAttempts.current < maxReconnectAttempts) {
-          reconnectAttempts.current++;
-          reconnectTimeoutRef.current = setTimeout(() => {
-            connectWebSocket();
-          }, 3000 * reconnectAttempts.current);
-        }
-      };
-
-      ws.onerror = (error) => {
-        console.error('WebSocket错误:', error);
-        setConnected(false);
-      };
-
-      wsRef.current = ws;
-    } catch (error) {
-      console.error('WebSocket连接失败:', error);
+  // 停止轮询
+  const stopPolling = useCallback(() => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
     }
-  }, [toast]);
-
-  // 断开WebSocket连接
-  const disconnectWebSocket = useCallback(() => {
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
+    if (unreadCountIntervalRef.current) {
+      clearInterval(unreadCountIntervalRef.current);
+      unreadCountIntervalRef.current = null;
     }
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-      reconnectTimeoutRef.current = null;
-    }
-    setConnected(false);
+    console.log('📡 通知轮询已停止');
   }, []);
 
   // 初始化
   useEffect(() => {
-    fetchNotifications();
-    connectWebSocket();
+    setLoading(true);
+
+    // 初始加载通知
+    fetchRecentNotificationsData(false).finally(() => {
+      setLoading(false);
+    });
+
+    // 初始加载未读数量
+    fetchUnreadCount();
+
+    // 启动轮询
+    startPolling();
 
     return () => {
-      disconnectWebSocket();
+      stopPolling();
     };
-  }, [fetchNotifications, connectWebSocket, disconnectWebSocket]);
+  }, []); // 移除依赖，只在组件挂载时执行一次
 
   return {
     notifications,
     unreadCount,
     loading,
-    connected,
     markAsRead,
     markAllAsRead,
     deleteNotification,
-    fetchNotifications,
-    connectWebSocket,
-    disconnectWebSocket
+    fetchNotifications: fetchRecentNotificationsData,
+    refreshNotifications: () => fetchRecentNotificationsData(false),
+    refreshUnreadCount: fetchUnreadCount
   };
 };

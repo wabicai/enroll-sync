@@ -551,22 +551,40 @@ export const decideApprovalStep = async (id: string, stepKey: string, approved: 
 };
 
 // 通知管理
-export const fetchNotifications = async (): Promise<NotificationItem[]> => {
-  const result = await apiRequest('/notifications');
-  return result.items || result.data || [];
+export const fetchNotifications = async (page: number = 1, pageSize: number = 10): Promise<{items: NotificationItem[], total: number, page: number, page_size: number}> => {
+  const result = await apiRequest(`/notifications/?page=${page}&page_size=${pageSize}`);
+  return result;
+};
+
+export const fetchRecentNotifications = async (limit: number = 5, since?: string, unreadOnly: boolean = false): Promise<{items: NotificationItem[]}> => {
+  let url = `/notifications/recent?limit=${limit}`;
+  if (since) {
+    url += `&since=${encodeURIComponent(since)}`;
+  }
+  if (unreadOnly) {
+    url += `&unread_only=true`;
+  }
+  const result = await apiRequest(url);
+  return result;
+};
+
+export const fetchUnreadNotificationCount = async (): Promise<{count: number}> => {
+  const result = await apiRequest('/notifications/unread-count');
+  return result;
 };
 
 export const markNotificationAsRead = async (id: number): Promise<void> => {
   await apiRequest(`/notifications/${id}/read`, {
     method: 'PUT',
-    body: JSON.stringify({}),
   });
 };
 
+
+
 export const markAllNotificationsAsRead = async (): Promise<void> => {
-  await apiRequest('/notifications/read-all', {
+  await apiRequest('/notifications/mark-read', {
     method: 'PUT',
-    body: JSON.stringify({}),
+    body: JSON.stringify({ notification_ids: null }),
   });
 };
 
