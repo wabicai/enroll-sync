@@ -6,7 +6,7 @@ import type { ApiResponse } from '@/types';
 // API配置 - 统一的环境控制
 const API_CONFIG = {
   MOCK: 'mock',
-  LOCAL: 'http://localhost:8000',
+  LOCAL: 'http://localhost:48389',
   PRODUCTION: 'https://chuangningpeixun.com'
 } as const;
 
@@ -17,7 +17,7 @@ const getCurrentMode = () => {
 
   // 优先使用 VITE_API_BASE_URL 环境变量
   const apiBaseUrl = (import.meta as any).env?.VITE_API_BASE_URL;
-  if (apiBaseUrl === 'http://localhost:8000') return 'local';
+  if (apiBaseUrl === 'http://localhost:48389') return 'local';
   if (apiBaseUrl && apiBaseUrl.includes('chuangningpeixun.com')) return 'production';
 
   const mode = (import.meta as any).env?.MODE;

@@ -9,7 +9,9 @@ import type {
   Schedule,
   Assessment,
   ExportRecord,
-  NotificationItem
+  NotificationItem,
+  DashboardStats,
+  ChartData
 } from '@/types';
 
 // 审批相关类型定义，匹配后端响应
@@ -333,24 +335,26 @@ export const loginAdmin = async (username: string, password: string) => {
 export const fetchStudents = async (): Promise<Student[]> => {
   const result = await apiRequest('/students');
 
-  // 转换后端数据结构到前端期望的格式
+  // 转换后端ExamStudent数据结构到前端期望的格式
   const items = result.items || [];
   return items.map((item: any) => ({
     id: item.id.toString(),
+    student_number: item.student_number || '',
     name: item.name,
-    idCard: item.id_card,
     phone: item.phone,
-    category: 'other' as const, // 默认类别
-    status: item.status === 1 ? 'approved' : 'pending',
-    paymentStatus: 'paid' as const, // 默认已付费
-    amount: 0, // 默认金额
-    paidAmount: 0, // 默认已付金额
-    recruiterId: item.created_by?.toString() || '0',
-    recruiterName: '未知', // 默认招生员名称
-    tags: [],
+    gender: item.gender || 1,
+    education: item.education || '',
+    major: item.major,
+    work_unit: item.work_unit,
+    job_position: item.job_position,
+    work_years: item.work_years,
+    employment_intention: item.employment_intention,
+    notes: item.notes,
+    status: item.status || 1,
+    created_by: item.created_by || 0,
+    last_modified_by: item.last_modified_by,
     createdAt: item.created_at,
-    updatedAt: item.updated_at,
-    examId: undefined
+    updatedAt: item.updated_at
   }));
 };
 
@@ -448,10 +452,34 @@ export const applyReward = async (rewardId: string, applicationData: any): Promi
   return result.data;
 };
 
+// 状态枚举映射
+const statusMap = {
+  1: 'active',    // 激活
+  2: 'pending',   // 待审核
+  3: 'inactive',  // 已拒绝
+  4: 'inactive',  // 已禁用
+} as const;
+
 // 用户管理
 export const fetchUsers = async (): Promise<User[]> => {
   const result = await apiRequest('/users');
-  return result.items || result.data || [];
+  const items = result.items || result.data || [];
+
+  // 转换后端数据格式以匹配前端期望
+  return items.map((item: any) => ({
+    ...item,
+    // 转换状态字段
+    status: statusMap[item.status] || 'inactive',
+    // 转换创建时间字段名，确保日期格式正确
+    createdAt: item.created_at ? new Date(item.created_at).toISOString() : undefined,
+    updatedAt: item.updated_at ? new Date(item.updated_at).toISOString() : undefined,
+    // 确保其他字段正确映射
+    real_name: item.real_name,
+    avatar: item.avatar_url,
+    // 保持原始字段以备用
+    name: item.real_name || item.username,
+    email: item.email || `${item.username}@example.com`, // 临时邮箱，如果后端没有邮箱字段
+  }));
 };
 
 export const createUser = async (user: Omit<User, 'id' | 'createdAt' | 'updatedAt'>): Promise<User> => {
@@ -551,22 +579,40 @@ export const decideApprovalStep = async (id: string, stepKey: string, approved: 
 };
 
 // 通知管理
-export const fetchNotifications = async (): Promise<NotificationItem[]> => {
-  const result = await apiRequest('/notifications');
-  return result.items || result.data || [];
+export const fetchNotifications = async (page: number = 1, pageSize: number = 10): Promise<{items: NotificationItem[], total: number, page: number, page_size: number}> => {
+  const result = await apiRequest(`/notifications/?page=${page}&page_size=${pageSize}`);
+  return result;
+};
+
+export const fetchRecentNotifications = async (limit: number = 5, since?: string, unreadOnly: boolean = false): Promise<{items: NotificationItem[]}> => {
+  let url = `/notifications/recent?limit=${limit}`;
+  if (since) {
+    url += `&since=${encodeURIComponent(since)}`;
+  }
+  if (unreadOnly) {
+    url += `&unread_only=true`;
+  }
+  const result = await apiRequest(url);
+  return result;
+};
+
+export const fetchUnreadNotificationCount = async (): Promise<{count: number}> => {
+  const result = await apiRequest('/notifications/unread-count');
+  return result;
 };
 
 export const markNotificationAsRead = async (id: number): Promise<void> => {
   await apiRequest(`/notifications/${id}/read`, {
     method: 'PUT',
-    body: JSON.stringify({}),
   });
 };
 
+
+
 export const markAllNotificationsAsRead = async (): Promise<void> => {
-  await apiRequest('/notifications/read-all', {
+  await apiRequest('/notifications/mark-read', {
     method: 'PUT',
-    body: JSON.stringify({}),
+    body: JSON.stringify({ notification_ids: null }),
   });
 };
 
@@ -753,22 +799,116 @@ export const deleteAssessment = async (id: string): Promise<void> => {
   });
 };
 
-export const fetchAssessmentsMonthly = async () => {
-  const result = await apiRequest('/assessments/monthly');
-  return result.data;
+export const fetchAssessmentsMonthly = async (params: { period: string; identity?: string; page?: number; page_size?: number }) => {
+  const queryParams = new URLSearchParams();
+  // period 是必需参数
+  queryParams.append('period', params.period);
+
+  if (params.identity) {
+    queryParams.append('identity', params.identity);
+  }
+  if (params.page) {
+    queryParams.append('page', params.page.toString());
+  }
+  if (params.page_size) {
+    queryParams.append('page_size', params.page_size.toString());
+  }
+
+  const url = `/assessments/monthly?${queryParams.toString()}`;
+  const result = await apiRequest(url);
+  return result;
 };
 
-export const calculateAssessments = async () => {
+export const calculateAssessments = async (period: string) => {
+  // period 是必需参数
+  const body = { period };
   const result = await apiRequest('/assessments/calculate', {
     method: 'POST',
-    body: JSON.stringify({}),
+    body: JSON.stringify(body),
   });
-  return result.data;
+  return result;
 };
 
-export const fetchAssessmentWarnings = async () => {
-  const result = await apiRequest('/assessments/warnings');
-  return result.data;
+export const fetchAssessmentWarnings = async (period: string, identity?: string) => {
+  const queryParams = new URLSearchParams();
+  // period 是必需参数
+  queryParams.append('period', period);
+
+  if (identity) {
+    queryParams.append('identity', identity);
+  }
+
+  const url = `/assessments/warnings?${queryParams.toString()}`;
+  const result = await apiRequest(url);
+  return result;
+};
+
+// 考核配置管理接口
+export const fetchAssessmentConfigs = async (params?: {
+  page?: number;
+  page_size?: number;
+  user_id?: number;
+  personal_enabled_only?: boolean;
+  team_enabled_only?: boolean;
+}) => {
+  const queryParams = new URLSearchParams();
+  if (params?.page) {
+    queryParams.append('page', params.page.toString());
+  }
+  if (params?.page_size) {
+    queryParams.append('page_size', params.page_size.toString());
+  }
+  if (params?.user_id) {
+    queryParams.append('user_id', params.user_id.toString());
+  }
+  if (params?.personal_enabled_only) {
+    queryParams.append('personal_enabled_only', 'true');
+  }
+  if (params?.team_enabled_only) {
+    queryParams.append('team_enabled_only', 'true');
+  }
+
+  const url = `/assessments/configs${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+  const result = await apiRequest(url);
+  return result;
+};
+
+export const createAssessmentConfig = async (config: {
+  user_id: number;
+  is_personal_enabled: boolean;
+  is_team_enabled: boolean;
+  personal_target_students?: number;
+  personal_target_revenue?: number;
+  team_target_students?: number;
+  team_target_revenue?: number;
+}) => {
+  const result = await apiRequest('/assessments/configs', {
+    method: 'POST',
+    body: JSON.stringify(config),
+  });
+  return result;
+};
+
+export const updateAssessmentConfig = async (userId: number, config: {
+  is_personal_enabled?: boolean;
+  is_team_enabled?: boolean;
+  personal_target_students?: number;
+  personal_target_revenue?: number;
+  team_target_students?: number;
+  team_target_revenue?: number;
+}) => {
+  const result = await apiRequest(`/assessments/configs/${userId}`, {
+    method: 'PUT',
+    body: JSON.stringify(config),
+  });
+  return result;
+};
+
+export const deleteAssessmentConfig = async (userId: number) => {
+  const result = await apiRequest(`/assessments/configs/${userId}`, {
+    method: 'DELETE',
+  });
+  return result;
 };
 
 // 设置相关
@@ -847,4 +987,145 @@ export const api = {
       ...options,
     });
   },
+};
+
+// ==================== Dashboard API ====================
+
+// Dashboard 数据类型定义
+interface DashboardMobileSummary {
+  success: boolean;
+  data: {
+    stats: {
+      totalStudents: number;
+      thisMonthStudents: number;
+      totalRevenue: number;
+      thisMonthRevenue: number;
+    };
+    userInfo: {
+      id: number;
+      real_name: string;
+      roles: number[];
+    };
+  };
+}
+
+interface PersonnelStats {
+  role_name: string;
+  total_count: number;
+  active_count: number;
+  total_students: number;
+  total_revenue: number;
+}
+
+interface RecruitmentStats {
+  current_month: number;
+  current_year: number;
+  last_month: number;
+  month_growth_rate: number;
+  daily_stats: Array<{
+    date: string;
+    count: number;
+  }>;
+}
+
+interface IndustryStats {
+  industry_tag: string;
+  student_count: number;
+  revenue_amount: number;
+  avg_fee: number;
+}
+
+interface RevenueStats {
+  total_revenue: number;
+  received_amount: number;
+  receivable_amount: number;
+  collection_rate: number;
+  this_month_total: number;
+  this_year_total: number;
+}
+
+interface RealtimeStats {
+  today_students: number;
+  today_revenue: number;
+  this_week_students: number;
+  this_week_revenue: number;
+  online_recruiters: number;
+  pending_reviews: number;
+}
+
+// Dashboard API 函数
+export const fetchDashboardMobileSummary = async (): Promise<DashboardMobileSummary> => {
+  const result = await apiRequest('/dashboard/mobile/summary');
+  return result;
+};
+
+export const fetchPersonnelStats = async (): Promise<PersonnelStats[]> => {
+  const result = await apiRequest('/dashboard/personnel-stats');
+  return result;
+};
+
+export const fetchRecruitmentStats = async (): Promise<RecruitmentStats> => {
+  const result = await apiRequest('/dashboard/recruitment-stats');
+  return result;
+};
+
+export const fetchIndustryStats = async (): Promise<IndustryStats[]> => {
+  const result = await apiRequest('/dashboard/industry-stats');
+  return result;
+};
+
+export const fetchRevenueStats = async (): Promise<RevenueStats> => {
+  const result = await apiRequest('/dashboard/revenue-stats');
+  return result;
+};
+
+export const fetchRealtimeStats = async (): Promise<RealtimeStats> => {
+  const result = await apiRequest('/dashboard/realtime');
+  return result;
+};
+
+export const fetchDashboardOverview = async (): Promise<any> => {
+  const result = await apiRequest('/dashboard/overview');
+  return result;
+};
+
+// 考试报名学员名单管理
+export const fetchExamEnrollments = async (
+  scheduleId: string,
+  params?: {
+    keyword?: string;
+    enrollment_status?: number;
+    qualification_status?: number;
+    materials_complete?: boolean;
+    preliminary_result?: number;
+    certificate_status?: number;
+    recruiter_id?: number;
+    channel?: string;
+    is_veteran_conversion?: boolean;
+    follow_up?: boolean;
+    start_date?: string;
+    end_date?: string;
+    page?: number;
+    page_size?: number;
+    include_statistics?: boolean;
+  }
+): Promise<any> => {
+  const queryParams = new URLSearchParams();
+  
+  if (params) {
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        queryParams.append(key, String(value));
+      }
+    });
+  }
+
+  const url = `/exams/schedules/${scheduleId}/enrollments${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+  const result = await apiRequest(url);
+  return result;
+};
+
+export const fetchExamEnrollmentStatistics = async (scheduleId: string): Promise<any> => {
+  const result = await apiRequest(`/exams/schedules/${scheduleId}/enrollments/statistics`);
+  return result;
 };

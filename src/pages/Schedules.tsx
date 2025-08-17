@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
+import { ExamEnrollmentDialog } from '@/components/ExamEnrollmentDialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -37,6 +38,10 @@ export default function Schedules() {
   const [selected, setSelected] = useState<Schedule | null>(null);
   const [seatAdjust, setSeatAdjust] = useState<number>(1);
   const [notifyChange, setNotifyChange] = useState<boolean>(false);
+  
+  // 学员名单对话框状态
+  const [enrollmentDialogOpen, setEnrollmentDialogOpen] = useState(false);
+  const [selectedScheduleForEnrollment, setSelectedScheduleForEnrollment] = useState<Schedule | null>(null);
 
   // 缓存状态，避免重复加载
   const [dataLoaded, setDataLoaded] = useState(false);
@@ -114,6 +119,22 @@ export default function Schedules() {
     const url = `${location.pathname}?${sp.toString()}`;
     window.history.replaceState({}, '', url);
   }, [courseFilter, statusFilter, dateFilter, page, sortKey]);
+
+  // 计算过滤后的数据
+  const filtered = useMemo(() => {
+    return schedules
+      .filter(s => courseFilter === 'all' || s.course_name === courseFilter)
+      .filter(s => statusFilter === 'all' ? true : String(s.status) === statusFilter)
+      .filter(s => !dateFilter ? true : s.exam_date === dateFilter)
+      .sort((a, b) => {
+        if (sortKey === 'status') {
+          return a.status - b.status;
+        }
+        const ta = new Date(`${a.exam_date}T${a.exam_time || '00:00'}`).getTime();
+        const tb = new Date(`${b.exam_date}T${b.exam_time || '00:00'}`).getTime();
+        return sortKey === 'date_asc' ? ta - tb : tb - ta;
+      });
+  }, [schedules, courseFilter, statusFilter, dateFilter, sortKey]);
 
   return (
     <div className="space-y-6">
@@ -298,18 +319,7 @@ export default function Schedules() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-              {schedules
-                .filter(s => courseFilter === 'all' || s.course_name === courseFilter)
-                .filter(s => statusFilter === 'all' ? true : String(s.status) === statusFilter)
-                .filter(s => !dateFilter ? true : s.exam_date === dateFilter)
-                .sort((a, b) => {
-                  if (sortKey === 'status') {
-                    return a.status - b.status;
-                  }
-                  const ta = new Date(`${a.exam_date}T${a.exam_time || '00:00'}`).getTime();
-                  const tb = new Date(`${b.exam_date}T${b.exam_time || '00:00'}`).getTime();
-                  return sortKey === 'date_asc' ? ta - tb : tb - ta;
-                })
+              {filtered
                 .slice((page - 1) * pageSize, page * pageSize)
                 .map(s => (
                 <TableRow
@@ -381,6 +391,17 @@ export default function Schedules() {
                         <Button
                           variant="ghost"
                           size="sm"
+                          className="h-8 px-2 text-green-600 hover:text-green-700 hover:bg-green-50"
+                          onClick={() => {
+                            setSelectedScheduleForEnrollment(s);
+                            setEnrollmentDialogOpen(true);
+                          }}
+                        >
+                          名单
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           className="h-8 px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
                           onClick={async () => {
                             const ok = confirm(`确认删除该安排：${s.course_name} ${s.exam_date}？`);
@@ -396,6 +417,18 @@ export default function Schedules() {
                   </TableCell>
                 </TableRow>
               ))}
+              {filtered.length === 0 && schedules.length > 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} className="py-12 text-center">
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="text-muted-foreground text-lg">没有符合条件的考试安排</div>
+                      <div className="text-sm text-muted-foreground">
+                        请调整筛选条件或清空筛选器
+                      </div>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )}
               {schedules.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={6} className="py-12 text-center">
@@ -411,16 +444,32 @@ export default function Schedules() {
               </TableBody>
             </Table>
           </div>
-          {schedules.length > 0 && (
+          {filtered.length > 0 && (
             <div className="py-4">
               <Pagination>
                 <PaginationContent>
                   <PaginationItem>
-                    <PaginationPrevious href="#" onClick={(e) => { e.preventDefault(); setPage(p => Math.max(1, p - 1)); }} />
+                    <PaginationPrevious
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setPage(p => Math.max(1, p - 1));
+                      }}
+                      className={page <= 1 ? 'pointer-events-none opacity-50' : ''}
+                    />
                   </PaginationItem>
-                  <span className="px-3 text-sm text-muted-foreground">{page}</span>
+                  <span className="px-3 text-sm text-muted-foreground">
+                    第 {page} 页，共 {Math.ceil(filtered.length / pageSize)} 页
+                  </span>
                   <PaginationItem>
-                    <PaginationNext href="#" onClick={(e) => { e.preventDefault(); setPage(p => p + 1); }} />
+                    <PaginationNext
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setPage(p => Math.min(Math.ceil(filtered.length / pageSize), p + 1));
+                      }}
+                      className={page >= Math.ceil(filtered.length / pageSize) ? 'pointer-events-none opacity-50' : ''}
+                    />
                   </PaginationItem>
                 </PaginationContent>
               </Pagination>
@@ -628,6 +677,17 @@ export default function Schedules() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* 学员名单对话框 */}
+      {selectedScheduleForEnrollment && (
+        <ExamEnrollmentDialog
+          open={enrollmentDialogOpen}
+          onOpenChange={setEnrollmentDialogOpen}
+          scheduleId={selectedScheduleForEnrollment.id}
+          scheduleName={selectedScheduleForEnrollment.course_name || '未知课程'}
+          examDate={selectedScheduleForEnrollment.exam_date}
+        />
+      )}
     </div>
   );
 }
