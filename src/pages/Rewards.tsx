@@ -14,10 +14,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 const statusLabels = {
   1: '待考务审核',
-  2: '可申请',
-  3: '申请中',
-  4: '已批准',
-  5: '已拒绝',
+  2: '待总经理审批',
+  3: '可申请奖励',
+  4: '申请中',
+  5: '审核中',
   6: '已发放',
   // 兼容旧的字符串状态
   pending: '待审核',
@@ -114,10 +114,10 @@ export default function Rewards() {
   const getStatusVariant = (status: string | number) => {
     switch (status) {
       case 1: return 'outline'; // 待考务审核
-      case 2: return 'secondary'; // 可申请
-      case 3: return 'outline'; // 申请中
-      case 4: return 'secondary'; // 已批准
-      case 5: return 'destructive'; // 已拒绝
+      case 2: return 'outline'; // 待总经理审批
+      case 3: return 'secondary'; // 可申请奖励
+      case 4: return 'outline'; // 申请中
+      case 5: return 'outline'; // 审核中
       case 6: return 'default'; // 已发放
       // 兼容旧的字符串状态
       case 'paid': return 'default';

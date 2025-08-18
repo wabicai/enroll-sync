@@ -97,7 +97,7 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
   const getApiBaseUrl = () => {
     const mode = getCurrentMode();
     if (mode === 'mock') return null;
-    return mode === 'local' ? 'http://localhost:8000' : 'https://chuangningpeixun.com';
+    return mode === 'local' ? 'http://localhost:48389' : 'https://chuangningpeixun.com';
   };
 
   // 执行导出
