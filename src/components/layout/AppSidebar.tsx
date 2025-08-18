@@ -8,9 +8,7 @@ import {
   Settings,
   Home,
   CheckCircle2,
-  Bell,
   TrendingUp,
-  Download,
   BookOpen,
   ChevronDown,
 } from 'lucide-react';
@@ -67,6 +65,11 @@ const menuGroups = [
         icon: CalendarCheck,
       },
       {
+        title: '考核管理',
+        url: '/assessments',
+        icon: TrendingUp,
+      },
+      {
         title: '奖励管理',
         url: '/rewards',
         icon: Award,
@@ -76,21 +79,6 @@ const menuGroups = [
   {
     label: '系统管理',
     items: [
-      {
-        title: '通知中心',
-        url: '/notifications',
-        icon: Bell,
-      },
-      {
-        title: '考核管理',
-        url: '/assessments',
-        icon: TrendingUp,
-      },
-      {
-        title: '导出中心',
-        url: '/exports',
-        icon: Download,
-      },
       {
         title: '系统设置',
         url: '/settings',

@@ -6,13 +6,14 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import type { Course, Schedule } from '@/types';
 import { fetchCourses, toggleCourseStatus, createCourse, updateCourse, deleteCourse, fetchCoursesStatisticsSummary, fetchSchedules } from '@/lib/api';
+// TODO: 暂时注释掉导出功能 - import { exportStudents } from '@/lib/api';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Courses() {
@@ -41,6 +42,7 @@ export default function Courses() {
   const [dataLoaded, setDataLoaded] = useState(false);
   const [statsLoaded, setStatsLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
+  // TODO: 暂时注释掉导出状态 - const [exporting, setExporting] = useState(false);
 
   // 手动刷新数据的函数
   const refreshData = async () => {
@@ -75,6 +77,38 @@ export default function Courses() {
       setLoading(false);
     }
   };
+
+  // TODO: 暂时注释掉导出功能，后续再添加
+  // const handleExport = async () => {
+  //   try {
+  //     setExporting(true);
+  //     const result = await exportStudents(); // 注意：这里使用学员导出接口，因为课程相关的数据通常在学员数据中
+
+  //     // 如果返回的是文件URL，直接下载
+  //     if (result.file_url) {
+  //       const link = document.createElement('a');
+  //       link.href = result.file_url;
+  //       link.download = result.filename || '课程数据导出.xlsx';
+  //       document.body.appendChild(link);
+  //       link.click();
+  //       document.body.removeChild(link);
+  //     } else {
+  //       toast({
+  //         title: "导出成功",
+  //         description: "课程数据已成功导出",
+  //       });
+  //     }
+  //   } catch (error) {
+  //     console.error('导出失败:', error);
+  //     toast({
+  //       title: "导出失败",
+  //       description: "导出失败，请重试",
+  //       variant: "destructive",
+  //     });
+  //   } finally {
+  //     setExporting(false);
+  //   }
+  // };
 
   // 优化数据加载，避免重复请求
   useEffect(() => {
@@ -172,6 +206,17 @@ export default function Courses() {
           <p className="text-muted-foreground">管理课程基础信息与启停状态</p>
         </div>
         <div className="flex items-center gap-2">
+          {/* TODO: 暂时注释掉导出按钮，后续再添加
+          <Button
+            variant="outline"
+            onClick={handleExport}
+            disabled={exporting}
+            className="flex items-center gap-2"
+          >
+            <Download className="h-4 w-4" />
+            {exporting ? '导出中...' : '导出数据'}
+          </Button>
+          */}
           <Button
             variant="outline"
             onClick={refreshData}

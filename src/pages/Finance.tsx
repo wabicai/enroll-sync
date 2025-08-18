@@ -158,10 +158,12 @@ export default function Finance() {
           </p>
         </div>
         <div className="flex gap-2">
+          {/* TODO: 暂时注释掉导出功能，后续再添加
           <Button variant="outline" size="sm">
             <Download className="h-4 w-4 mr-2" />
             导出报表
           </Button>
+          */}
           <Button size="sm">
             <Plus className="h-4 w-4 mr-2" />
             添加记录

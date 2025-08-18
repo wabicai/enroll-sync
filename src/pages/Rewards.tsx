@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Trophy, DollarSign, Users, Clock } from 'lucide-react';
-import { fetchRewards, createReward } from '@/lib/api';
+import { Plus, Trophy, DollarSign, Users, Clock, Download, Search, Filter, Calendar } from 'lucide-react';
+import { fetchRewards, createReward, exportRewards } from '@/lib/api';
 import type { Reward } from '@/types';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -37,6 +37,13 @@ export default function Rewards() {
   const [openAdd, setOpenAdd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  
+  // 筛选状态
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   // initial load from backend
   useEffect(() => {
@@ -62,6 +69,21 @@ export default function Rewards() {
     })();
     return () => { mounted = false; };
   }, []);
+
+  // 筛选逻辑
+  const filteredRewards = rewards.filter(reward => {
+    const matchesSearch = !searchTerm || 
+      (reward.userName && reward.userName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (reward.id && reward.id.toString().includes(searchTerm));
+    
+    const matchesStatus = statusFilter === 'all' || reward.status.toString() === statusFilter;
+    
+    const rewardDate = new Date(reward.createdAt || new Date());
+    const matchesDateRange = (!startDate || rewardDate >= new Date(startDate)) &&
+                           (!endDate || rewardDate <= new Date(endDate));
+    
+    return matchesSearch && matchesStatus && matchesDateRange;
+  });
 
   // 添加奖励
   const [addForm, setAddForm] = useState({
@@ -111,6 +133,20 @@ export default function Rewards() {
     }
   };
 
+  // 导出奖励数据
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      await exportRewards();
+      alert('导出成功');
+    } catch (error) {
+      console.error('导出失败:', error);
+      alert('导出失败，请重试');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const getStatusVariant = (status: string | number) => {
     switch (status) {
       case 1: return 'outline'; // 待考务审核
@@ -151,7 +187,7 @@ export default function Rewards() {
               添加奖励
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+            <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>添加奖励</DialogTitle>
             </DialogHeader>
@@ -290,7 +326,7 @@ export default function Rewards() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ¥{rewards.filter(r => r.status === 'paid').reduce((sum, r) => sum + r.amount, 0).toLocaleString()}
+              ¥{rewards.filter(r => r.status === 'paid').reduce((sum, r) => sum + (r.amount || 0), 0).toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
               已发放总金额
@@ -298,6 +334,75 @@ export default function Rewards() {
           </CardContent>
         </Card>
       </div>
+
+              {/* 筛选和搜索 */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            {/* 筛选区域 */}
+            <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:gap-6">
+              <div className="relative">
+                <Label className="text-sm font-medium mb-2 block">搜索</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="搜索奖励..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-9 w-48"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <Label className="text-sm font-medium mb-2 block">状态</Label>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue placeholder="全部状态" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">全部状态</SelectItem>
+                    <SelectItem value="1">待考务审核</SelectItem>
+                    <SelectItem value="2">可申请</SelectItem>
+                    <SelectItem value="3">申请中</SelectItem>
+                    <SelectItem value="4">已批准</SelectItem>
+                    <SelectItem value="5">已拒绝</SelectItem>
+                    <SelectItem value="6">已发放</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <Label className="text-sm font-medium mb-2 block">开始日期</Label>
+                <Input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-40"
+                />
+              </div>
+              
+              <div>
+                <Label className="text-sm font-medium mb-2 block">结束日期</Label>
+                <Input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-40"
+                />
+              </div>
+            </div>
+            
+            {/* 导出按钮 */}
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleExport} disabled={exporting}>
+                <Download className="mr-2 h-4 w-4" />
+                {exporting ? '导出中...' : '导出数据'}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* 奖励列表 */}
       <Tabs defaultValue="all" className="space-y-4">
@@ -325,20 +430,20 @@ export default function Rewards() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rewards.map(reward => (
+                  {filteredRewards.map(reward => (
                     <TableRow key={reward.id}>
                       <TableCell className="font-medium">{reward.userName}</TableCell>
                       <TableCell>{typeLabels[reward.type] || reward.type}</TableCell>
-                      <TableCell>¥{reward.amount.toLocaleString()}</TableCell>
+                      <TableCell>¥{(reward.amount || 0).toLocaleString()}</TableCell>
                       <TableCell>
                         <Badge variant={getStatusVariant(reward.status)}>
                           {statusLabels[reward.status] || reward.status}
                         </Badge>
                       </TableCell>
-                      <TableCell>{new Date(reward.createdAt).toLocaleDateString('zh-CN')}</TableCell>
+                      <TableCell>{reward.createdAt ? new Date(reward.createdAt).toLocaleDateString('zh-CN') : 'Invalid Date'}</TableCell>
                     </TableRow>
                   ))}
-                  {rewards.length === 0 && (
+                  {filteredRewards.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center text-muted-foreground">暂无奖励记录</TableCell>
                     </TableRow>
@@ -366,16 +471,16 @@ export default function Rewards() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rewards.filter(r => r.status === 'pending').map(r => (
+                  {filteredRewards.filter(r => r.status === 'pending').map(r => (
                     <TableRow key={`pending_${r.id}`}>
-                      <TableCell>{r.userName}</TableCell>
-                      <TableCell>{typeLabels[r.type]}</TableCell>
-                      <TableCell>¥{r.amount.toLocaleString()}</TableCell>
-                      <TableCell className="max-w-xs truncate" title={r.reason}>{r.reason}</TableCell>
-                      <TableCell>{new Date(r.createdAt).toLocaleDateString('zh-CN')}</TableCell>
+                      <TableCell>{r.userName || '未知用户'}</TableCell>
+                      <TableCell>{typeLabels[r.type] || r.type || '未知类型'}</TableCell>
+                      <TableCell>¥{(r.amount || 0).toLocaleString()}</TableCell>
+                      <TableCell className="max-w-xs truncate" title={r.reason}>{r.reason || '无原因'}</TableCell>
+                      <TableCell>{r.createdAt ? new Date(r.createdAt).toLocaleDateString('zh-CN') : 'Invalid Date'}</TableCell>
                     </TableRow>
                   ))}
-                  {rewards.filter(r => r.status === 'pending').length === 0 && (
+                  {filteredRewards.filter(r => r.status === 'pending').length === 0 && (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center text-muted-foreground">暂无待审核记录</TableCell>
                     </TableRow>
@@ -403,16 +508,16 @@ export default function Rewards() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rewards.filter(r => r.status === 'approved').map(r => (
+                  {filteredRewards.filter(r => r.status === 'approved').map(r => (
                     <TableRow key={`approved_${r.id}`}>
-                      <TableCell>{r.userName}</TableCell>
-                      <TableCell>{typeLabels[r.type]}</TableCell>
-                      <TableCell>¥{r.amount.toLocaleString()}</TableCell>
-                      <TableCell className="max-w-xs truncate" title={r.reason}>{r.reason}</TableCell>
-                      <TableCell>{new Date(r.updatedAt || r.createdAt).toLocaleDateString('zh-CN')}</TableCell>
+                      <TableCell>{r.userName || '未知用户'}</TableCell>
+                      <TableCell>{typeLabels[r.type] || r.type || '未知类型'}</TableCell>
+                      <TableCell>¥{(r.amount || 0).toLocaleString()}</TableCell>
+                      <TableCell className="max-w-xs truncate" title={r.reason}>{r.reason || '无原因'}</TableCell>
+                      <TableCell>{(r.updatedAt || r.createdAt) ? new Date(r.updatedAt || r.createdAt).toLocaleDateString('zh-CN') : 'Invalid Date'}</TableCell>
                     </TableRow>
                   ))}
-                  {rewards.filter(r => r.status === 'approved').length === 0 && (
+                  {filteredRewards.filter(r => r.status === 'approved').length === 0 && (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center text-muted-foreground">暂无已审核记录</TableCell>
                     </TableRow>
@@ -440,7 +545,7 @@ export default function Rewards() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rewards.filter(r => r.status === 'paid').map(r => (
+                  {filteredRewards.filter(r => r.status === 'paid').map(r => (
                     <TableRow key={`paid_${r.id}`}>
                       <TableCell>{r.userName}</TableCell>
                       <TableCell>{typeLabels[r.type]}</TableCell>
@@ -449,7 +554,7 @@ export default function Rewards() {
                       <TableCell>{new Date(r.updatedAt || r.createdAt).toLocaleDateString('zh-CN')}</TableCell>
                     </TableRow>
                   ))}
-                  {rewards.filter(r => r.status === 'paid').length === 0 && (
+                  {filteredRewards.filter(r => r.status === 'paid').length === 0 && (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center text-muted-foreground">暂无发放记录</TableCell>
                     </TableRow>
