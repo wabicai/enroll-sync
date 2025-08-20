@@ -12,13 +12,13 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
+// 奖励状态标签映射 - 优化后的5状态体系
 const statusLabels = {
-  1: '待考务审核',
-  2: '待总经理审批',
-  3: '可申请奖励',
-  4: '申请中',
-  5: '审核中',
-  6: '已发放',
+  1: '可申请奖励',      // 系统自动生成，招生员可申请
+  2: '待考务审核',      // 招生员申请后直接进入考务审核
+  3: '待总经理审批',    // 考务审核通过后
+  4: '财务审核中',      // 总经理审批通过后
+  5: '已发放',          // 财务审核通过，流程结束
   // 兼容旧的字符串状态
   pending: '待审核',
   approved: '已审核',

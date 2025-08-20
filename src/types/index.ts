@@ -68,6 +68,9 @@ export interface Exam {
 // 奖励类型
 export type RewardType = 'recruitment' | 'development' | 'performance' | 'special';
 
+// 奖励状态枚举 - 优化后的5状态体系
+export type RewardStatus = 1 | 2 | 3 | 4 | 5;
+
 // 奖励信息
 export interface Reward {
   id: string;
@@ -76,7 +79,7 @@ export interface Reward {
   type: RewardType;
   amount: number;
   reason: string;
-  status: 'pending' | 'approved' | 'rejected' | 'paid';
+  status: RewardStatus | 'pending' | 'approved' | 'rejected' | 'paid'; // 支持新旧状态格式
   createdAt: string;
   updatedAt: string;
   approvedBy?: string;
