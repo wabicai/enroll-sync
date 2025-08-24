@@ -21,6 +21,7 @@ import Notifications from "./pages/Notifications";
 import Settings from "./pages/Settings";
 import Assessments from "./pages/Assessments";
 import Finance from "./pages/Finance";
+import Channels from "./pages/Channels";
 
 import RequireAuth from "./components/auth/RequireAuth";
 import { useAuth } from "@/hooks/useAuth";
@@ -69,6 +70,7 @@ const App = () => {
               <Route path="notifications" element={<Protected><Notifications /></Protected>} />
               <Route path="settings" element={<Protected><Settings /></Protected>} />
               <Route path="finance" element={<Protected><Finance /></Protected>} />
+              <Route path="channels" element={<Protected><Channels /></Protected>} />
             </Route>
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

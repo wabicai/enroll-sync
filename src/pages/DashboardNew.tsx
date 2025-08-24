@@ -549,6 +549,7 @@ export default function ModernDashboard() {
                     formatter={(value, name) => {
                       if (name === 'total_count') return [`${value}人`, '总人数'];
                       if (name === 'active_count') return [`${value}人`, '活跃人数'];
+                      if (name === 'total_revenue') return [`¥${(value as number).toLocaleString()}`, '总产值'];
                       return [value, name];
                     }}
                   />
@@ -563,6 +564,12 @@ export default function ModernDashboard() {
                     fill={COLORS.secondary}
                     radius={[4, 4, 0, 0]}
                     name="active_count"
+                  />
+                  <Bar
+                    dataKey="total_revenue"
+                    fill={COLORS.primary}
+                    radius={[4, 4, 0, 0]}
+                    name="total_revenue"
                   />
                 </BarChart>
               </ResponsiveContainer>

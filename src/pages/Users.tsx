@@ -439,13 +439,19 @@ export default function Users() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline">
-                      {user.role_type
-                        ? recruitmentRoleLabels[user.role_type]
-                        : user.roles && user.roles.length > 0
-                        ? user.roles[0]
-                        : "未设置"}
-                    </Badge>
+                    <div className="flex flex-wrap gap-1">
+                      {user.roles && user.roles.length > 0 ? (
+                        user.roles.map((role: UserRole) => (
+                          <Badge key={role.id} variant="outline">
+                            {recruitmentRoleLabels[role.role_type] || `角色 ${role.role_type}`}
+                          </Badge>
+                        ))
+                      ) : (
+                        <Badge variant="outline">
+                          {user.role_type ? recruitmentRoleLabels[user.role_type] : "未设置"}
+                        </Badge>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <span className="text-sm text-muted-foreground">
