@@ -28,7 +28,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { fetchApprovals, fetchApprovalsPending, decideApprovalStep } from "@/lib/api";
+import { fetchApprovals, fetchApprovalsPending, decideApprovalStep, markStudentAsPaid } from "@/lib/api";
 import { useAppStore } from "@/store/useAppStore";
 import {
   Sheet,
@@ -56,8 +56,7 @@ const stepStatusMap: Record<
 };
 
 const stepNameMap: Record<string, string> = {
-  exam: "考务审核",
-  finance: "财务发放",
+  finance: "财务审核",
   gm: "总经理审批",
 };
 
@@ -223,8 +222,6 @@ export default function Approvals() {
 
     // 根据步骤类型检查权限
     switch (stepKey) {
-      case "exam":
-        return user.role === "exam_staff";
       case "finance":
         return user.role === "finance_staff";
       case "gm":
@@ -934,6 +931,27 @@ export default function Approvals() {
                     steps={steps}
                     currentStepIndex={inst.current_step_index}
                   />
+
+                  {/* 财务专属操作：标记为已回款 */}
+                  {inst.target_type === "student_enrollment" &&
+                    student_details?.payment_type === 2 &&
+                    user?.role === 'finance_staff' && (
+                      <div className="pt-4 border-t">
+                        <h3 className="text-lg font-semibold mb-2">财务操作</h3>
+                        <Button
+                          onClick={async () => {
+                            await markStudentAsPaid(student_details.student_id);
+                            setApprovalOpen(false);
+                            loadApprovalData();
+                          }}
+                        >
+                          标记为已回款
+                        </Button>
+                        <p className="text-sm text-muted-foreground mt-2">
+                          点击此按钮确认该学员的尾款已缴清。确认后，系统将允许为该学员申请奖励。
+                        </p>
+                      </div>
+                    )}
 
 
 

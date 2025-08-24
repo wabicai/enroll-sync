@@ -388,6 +388,13 @@ export const deleteStudent = async (id: string): Promise<void> => {
   });
 };
 
+// 标记学员为已全额付款
+export const markStudentAsPaid = async (studentId: string): Promise<void> => {
+  await apiRequest(`/students/${studentId}/mark-as-paid`, {
+    method: 'POST',
+  });
+};
+
 // 考试管理
 export const fetchExams = async (): Promise<Exam[]> => {
   const result = await apiRequest('/exams');
@@ -505,6 +512,40 @@ export const updateUserStatus = async (id: string, status: User['status']): Prom
   });
   return result.data;
 };
+
+// 频道管理
+export const fetchChannelTags = async (): Promise<any[]> => {
+  const result = await apiRequest('/channels/tags');
+  return result.items || result.data || [];
+};
+
+export const createChannelTag = async (tag: { tag_name: string }): Promise<any> => {
+  const result = await apiRequest('/channels/tags', {
+    method: 'POST',
+    body: JSON.stringify(tag),
+  });
+  return result.data;
+};
+
+export const updateChannelTag = async (id: number, tag: { tag_name?: string }): Promise<any> => {
+  const result = await apiRequest(`/channels/tags/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(tag),
+  });
+  return result.data;
+};
+
+export const deleteChannelTag = async (id: number): Promise<void> => {
+  await apiRequest(`/channels/tags/${id}`, {
+    method: 'DELETE',
+  });
+};
+
+export const fetchChannelStats = async (): Promise<any[]> => {
+  const result = await apiRequest('/channels/stats');
+  return result.data || [];
+};
+
 
 export const deleteUser = async (id: string): Promise<void> => {
   await apiRequest(`/users/${id}`, {
@@ -1111,7 +1152,7 @@ export const fetchExamEnrollments = async (
   }
 ): Promise<any> => {
   const queryParams = new URLSearchParams();
-  
+
   if (params) {
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== '') {
