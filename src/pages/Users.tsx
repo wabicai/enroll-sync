@@ -57,6 +57,8 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import { useConfirm } from "@/hooks/useConfirm";
+import { useMessage } from "@/hooks/useMessage";
 
 // 招生人员角色类型映射 (对应后端 RoleTypeEnum)
 const recruitmentRoleLabels = {
@@ -122,6 +124,8 @@ export default function Users() {
   const [editForm, setEditForm] = useState<Partial<User>>({});
   const [page, setPage] = useState(1);
   const pageSize = 10;
+  const confirm = useConfirm();
+  const { error } = useMessage();
 
   const filteredUsers = users.filter((user) => {
     const matchesSearch =
@@ -644,7 +648,12 @@ export default function Users() {
               variant="destructive"
               onClick={async () => {
                 if (!selected) return;
-                const ok = confirm(`确认删除用户 ${selected.real_name || selected.email} ?`);
+                const ok = await confirm({
+                  title: "确认删除",
+                  message: `您确定要删除用户 "${selected.real_name || selected.email}" 吗？此操作不可撤销。`,
+                  okText: "确认删除",
+                  cancelText: "取消",
+                });
                 if (!ok) return;
                 try {
                   const success = await deleteUser(selected.id);
@@ -652,9 +661,9 @@ export default function Users() {
                     setUsers((prev) => prev.filter((u) => u.id !== selected.id));
                     setDetailOpen(false);
                   }
-                } catch (error) {
-                  console.error("删除用户失败:", error);
-                  alert("删除用户失败，请重试");
+                } catch (err) {
+                  console.error("删除用户失败:", err);
+                  error("删除失败", "删除用户时发生错误，请稍后重试。");
                 }
               }}
             >
@@ -681,7 +690,7 @@ export default function Users() {
                     }
                   } catch (error) {
                     console.error("更新用户失败:", error);
-                    alert("更新用户失败，请重试");
+                    error("更新失败", "更新用户信息时发生错误，请稍后重试。");
                   }
                 }}
               >

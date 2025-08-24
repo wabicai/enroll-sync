@@ -4,9 +4,15 @@ import { SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
 import { AppHeader } from './AppHeader';
 import { useAppStore } from '@/store/useAppStore';
+import { useConfirm } from '@/hooks/useConfirm';
+import { useMessage } from '@/hooks/useMessage';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { MessageDialog } from '@/components/common/MessageDialog';
 
 export function AppLayout() {
   const { initialize, sidebarCollapsed } = useAppStore();
+  const { confirmState, close: closeConfirm } = useConfirm();
+  const { messageState, close: closeMessage } = useMessage();
 
   useEffect(() => {
     initialize();
@@ -23,6 +29,8 @@ export function AppLayout() {
           </main>
         </div>
       </div>
+      <ConfirmDialog {...confirmState} onClose={closeConfirm} />
+      <MessageDialog {...messageState} onClose={closeMessage} />
     </SidebarProvider>
   );
 }

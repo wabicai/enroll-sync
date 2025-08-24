@@ -17,7 +17,7 @@ import Approvals from "./pages/Approvals";
 import Courses from "./pages/Courses";
 import Schedules from "./pages/Schedules";
 import { useAppStore } from "@/store/useAppStore";
-import Notifications from "./pages/Notifications";
+
 import Settings from "./pages/Settings";
 import Assessments from "./pages/Assessments";
 import Finance from "./pages/Finance";
@@ -67,7 +67,7 @@ const App = () => {
               <Route path="exams" element={<Protected><Exams /></Protected>} />
               <Route path="rewards" element={<Protected><Rewards /></Protected>} />
               <Route path="assessments" element={<Protected><Assessments /></Protected>} />
-              <Route path="notifications" element={<Protected><Notifications /></Protected>} />
+
               <Route path="settings" element={<Protected><Settings /></Protected>} />
               <Route path="finance" element={<Protected><Finance /></Protected>} />
               <Route path="channels" element={<Protected><Channels /></Protected>} />

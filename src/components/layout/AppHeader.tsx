@@ -12,7 +12,7 @@ import { SidebarTrigger } from '@/components/ui/sidebar';
 import { useAppStore } from '@/store/useAppStore';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { logout as apiLogout } from '@/lib/api';
-import { NotificationDropdown } from './NotificationDropdown';
+
 
 export function AppHeader() {
   const { user, theme, setTheme, logout, clearTokens, setIsAuthenticated } = useAppStore();
@@ -56,8 +56,7 @@ export function AppHeader() {
             />
           </div>
 
-          {/* 通知 */}
-          <NotificationDropdown />
+
 
           {/* 主题切换 */}
           <Button variant="ghost" size="icon" onClick={handleThemeToggle}>

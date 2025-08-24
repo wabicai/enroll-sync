@@ -17,6 +17,7 @@ import { fetchStudents, createStudent, setStudentStatus, updateStudent } from '@
 import type { Student } from '@/types';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { useMessage } from '@/hooks/useMessage';
 
 const statusLabels = {
   1: '正常',
@@ -43,6 +44,7 @@ export default function Students() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [selected, setSelected] = useState<Student | null>(null);
   const [loading, setLoading] = useState(false);
+  const { error } = useMessage();
   
   // 初始化从后端拉取学员列表
   useEffect(() => {
@@ -88,7 +90,7 @@ export default function Students() {
 
   const handleAddStudent = async () => {
     if (!addForm.name || !addForm.phone) {
-      alert('请填写必填字段');
+      error('信息不完整', '姓名和手机号是必填项，请填写完整。');
       return;
     }
 
@@ -115,7 +117,7 @@ export default function Students() {
       setAddForm({ status: 1, gender: 1 });
     } catch (error) {
       console.error('创建学员失败:', error);
-      alert('创建学员失败，请重试');
+      error('创建失败', '创建学员时发生错误，请检查网络连接或稍后重试。');
     }
   };
 

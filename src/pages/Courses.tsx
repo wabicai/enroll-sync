@@ -14,6 +14,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useConfirm } from '@/hooks/useConfirm';
+import { useMessage } from '@/hooks/useMessage';
 
 export default function Courses() {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -32,6 +34,8 @@ export default function Courses() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const confirm = useConfirm();
+  const { error } = useMessage();
 
   // 删除冲突对话框状态
   const [deleteConflictOpen, setDeleteConflictOpen] = useState(false);
@@ -398,7 +402,12 @@ export default function Courses() {
                             size="sm"
                             className="h-8 px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
                             onClick={async () => {
-                      const ok = confirm(`确认删除课程 ${c.course_name} ？`);
+                      const ok = await confirm({
+                        title: '确认删除',
+                        message: `您确定要删除课程 "${c.course_name}" 吗？此操作不可撤销。`,
+                        okText: '确认删除',
+                        cancelText: '取消',
+                      });
                       if (!ok) return;
 
                       try {
@@ -413,7 +422,7 @@ export default function Courses() {
                           setDeleteConflictOpen(true);
                         } else {
                           // 其他错误，显示通用错误信息
-                          alert(`删除失败: ${error.message || '未知错误'}`);
+                          error('删除失败', error.message || '未知错误，请稍后重试');
                         }
                       }
                             }}>

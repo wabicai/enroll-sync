@@ -12,6 +12,8 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
+import { useConfirm } from '@/hooks/useConfirm';
+import { useMessage } from '@/hooks/useMessage';
 
 const statusMap: Record<number, string> = {
   1: '草稿',
@@ -38,6 +40,8 @@ export default function Schedules() {
   const [selected, setSelected] = useState<Schedule | null>(null);
   const [seatAdjust, setSeatAdjust] = useState<number>(1);
   const [notifyChange, setNotifyChange] = useState<boolean>(false);
+  const confirm = useConfirm();
+  const { info } = useMessage();
   
   // 学员名单对话框状态
   const [enrollmentDialogOpen, setEnrollmentDialogOpen] = useState(false);
@@ -404,7 +408,12 @@ export default function Schedules() {
                           size="sm"
                           className="h-8 px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
                           onClick={async () => {
-                            const ok = confirm(`确认删除该安排：${s.course_name} ${s.exam_date}？`);
+                            const ok = await confirm({
+                              title: '确认删除',
+                              message: `您确定要删除 "${s.course_name}" 于 ${s.exam_date} 的考试安排吗？`,
+                              okText: '确认删除',
+                              cancelText: '取消',
+                            });
                             if (!ok) return;
                             const success = await deleteSchedule(s.id);
                             if (success) setSchedules(prev => prev.filter(x => x.id !== s.id));
@@ -618,7 +627,7 @@ export default function Schedules() {
                     setSchedules(prev => prev.map(x => x.id === selected.id ? updated : x));
                     setDetailOpen(false);
                     if (notifyChange) {
-                      alert('已发送通知（mock）');
+                      info('通知已发送', '已成功发送通知给相关人员（模拟）。');
                     }
                   }
                 }}>保存</Button>

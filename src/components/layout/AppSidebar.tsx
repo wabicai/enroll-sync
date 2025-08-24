@@ -71,26 +71,19 @@ const menuGroups = [
         url: '/rewards',
         icon: Award,
       },
-    ],
-  },
-  {
-    label: '系统管理',
-    items: [
-      {
-        title: '通知中心',
-        url: '/notifications',
-        icon: Bell,
-      },
       {
         title: '考核管理',
         url: '/assessments',
         icon: TrendingUp,
       },
-      {
-        title: '导出中心',
-        url: '/exports',
-        icon: Download,
-      },
+    ],
+  },
+  {
+    label: '系统管理',
+    items: [
+
+
+
       {
         title: '系统设置',
         url: '/settings',

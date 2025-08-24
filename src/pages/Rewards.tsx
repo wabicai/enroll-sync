@@ -11,6 +11,7 @@ import type { Reward } from '@/types';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useMessage } from '@/hooks/useMessage';
 
 // 奖励状态标签映射 - 优化后的5状态体系
 const statusLabels = {
@@ -37,6 +38,7 @@ export default function Rewards() {
   const [openAdd, setOpenAdd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { error: showError } = useMessage();
 
   // initial load from backend
   useEffect(() => {
@@ -77,7 +79,7 @@ export default function Rewards() {
 
   const handleAddReward = async () => {
     if (!addForm.student_enrollment_id || !addForm.recruiter_user_id || !addForm.total_fee) {
-      alert('请填写必填字段');
+      showError('信息不完整', '请填写所有必填字段。');
       return;
     }
 
@@ -107,7 +109,7 @@ export default function Rewards() {
       });
     } catch (error) {
       console.error('创建奖励失败:', error);
-      alert('创建奖励失败，请重试');
+      showError('创建失败', '创建奖励时发生错误，请检查网络连接或稍后重试。');
     }
   };
 
@@ -329,7 +331,7 @@ export default function Rewards() {
                     <TableRow key={reward.id}>
                       <TableCell className="font-medium">{reward.userName}</TableCell>
                       <TableCell>{typeLabels[reward.type] || reward.type}</TableCell>
-                      <TableCell>¥{reward.amount.toLocaleString()}</TableCell>
+                      <TableCell>¥{(reward.amount || 0).toLocaleString()}</TableCell>
                       <TableCell>
                         <Badge variant={getStatusVariant(reward.status)}>
                           {statusLabels[reward.status] || reward.status}

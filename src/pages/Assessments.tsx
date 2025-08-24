@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { fetchAssessmentConfigs, createAssessmentConfig, updateAssessmentConfig, deleteAssessmentConfig, fetchUsers } from '@/lib/api';
 import type { User } from '@/types';
+import { useMessage } from '@/hooks/useMessage';
 
 export default function Assessments() {
   const [users, setUsers] = useState<User[]>([]);
@@ -25,6 +26,7 @@ export default function Assessments() {
     team_target_students: 0,
     team_target_revenue: 0,
   });
+  const { success, error, info } = useMessage();
 
   useEffect(() => {
     loadData();
@@ -128,7 +130,7 @@ export default function Assessments() {
   // 保存配置
   const saveConfig = async () => {
     if (!selectedUser) {
-      alert('请先选择用户');
+      info('操作无效', '请先选择一个用户再进行操作。');
       return;
     }
 
@@ -138,21 +140,21 @@ export default function Assessments() {
       if (existingConfig) {
         // 更新现有配置
         await updateAssessmentConfig(parseInt(selectedUser.id), formData);
-        alert('考核配置更新成功！');
+        success('更新成功', '考核配置已成功更新！');
       } else {
         // 创建新配置
         await createAssessmentConfig({
           user_id: parseInt(selectedUser.id),
           ...formData
         });
-        alert('考核配置创建成功！');
+        success('创建成功', '考核配置已成功创建！');
       }
 
       await loadData();
       setDetailOpen(false);
     } catch (error) {
       console.error('保存考核配置失败:', error);
-      alert('保存失败，请检查输入信息');
+      error('保存失败', '保存考核配置时发生错误，请检查输入信息或稍后重试。');
     }
   };
 
