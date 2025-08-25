@@ -428,7 +428,22 @@ export const deleteExam = async (id: string): Promise<void> => {
 // 奖励管理
 export const fetchRewards = async (): Promise<Reward[]> => {
   const result = await apiRequest('/api/v1/rewards/students');
-  return result.items || result.data || [];
+  const rawData = result.items || result.data || [];
+
+
+
+  // 转换后端数据结构到前端期望的格式
+  return rawData.map((item: any, index: number) => ({
+    id: item.student_enrollment_id?.toString() || `reward_${index}`,
+    userId: item.recruiter_user_id?.toString() || '',
+    userName: item.recruiter_name || item.student_name || item.user_name || item.name || `用户${item.id || item.recruiter_user_id}`,
+    type: 'recruitment' as const, // 根据数据推断这是招生奖励
+    amount: item.paid_amount || item.total_fee || 0,
+    reason: `学生报名奖励 - 总费用: ¥${item.total_fee || 0}`,
+    status: item.payment_type === 1 ? 'paid' : 'pending' as const,
+    createdAt: item.created_at || new Date().toISOString(),
+    updatedAt: item.updated_at || new Date().toISOString(),
+  }));
 };
 
 export const createReward = async (reward: any): Promise<Reward> => {
@@ -1213,6 +1228,83 @@ export const fetchDashboardOverview = async (): Promise<any> => {
   return result;
 };
 
+export const fetchExamEnrollmentStatistics = async (scheduleId: string): Promise<any> => {
+  const result = await apiRequest(`/exams/schedules/${scheduleId}/enrollments/statistics`);
+  return result;
+};
+
+// 导出功能 - 简化版本，只导出学员数据
+export const exportRewards = async () => {
+  const mode = getCurrentMode();
+
+  // Mock模式处理
+  if (mode === 'mock') {
+    // Mock模式下模拟导出
+    const mockBlob = new Blob(['Mock Excel data'], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(mockBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `奖励学员数据_${new Date().toISOString().slice(0,10)}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    return { success: true, message: '导出成功' };
+  }
+
+  const baseUrl = getApiBaseUrl();
+  if (!baseUrl) {
+    throw new Error('无法获取API地址');
+  }
+
+  const token = getAuthToken();
+  
+  const response = await fetch(`${baseUrl}/api/v1/rewards/export`, {
+    method: 'POST',
+    headers: {
+      'Authorization': token ? `Bearer ${token}` : '',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ export_type: 'students' })
+  });
+
+  if (!response.ok) {
+    throw new Error(`导出失败: ${response.status}`);
+  }
+
+  // 获取文件blob
+  const blob = await response.blob();
+  
+  // 创建下载
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `奖励学员数据_${new Date().toISOString().slice(0,10)}.xlsx`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(url);
+  
+  return { success: true, message: '导出成功' };
+};
+
+// TODO: 暂时注释掉其他导出功能，后续再添加
+// export const exportStudents = async () => {
+//   const result = await apiRequest('/api/v1/students/export', {
+//     method: 'POST',
+//     body: JSON.stringify({ list_details: true }),
+//   });
+//   return result;
+// };
+
+// export const exportExams = async () => {
+//   const result = await apiRequest('/api/v1/exams/export', {
+//     method: 'POST',
+//     body: JSON.stringify({ list_statistics: true }),
+//   });
+//   return result;
+// };
+
 // 考试报名学员名单管理
 export const fetchExamEnrollments = async (
   scheduleId: string,
@@ -1246,10 +1338,5 @@ export const fetchExamEnrollments = async (
 
   const url = `/exams/schedules/${scheduleId}/enrollments${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
   const result = await apiRequest(url);
-  return result;
-};
-
-export const fetchExamEnrollmentStatistics = async (scheduleId: string): Promise<any> => {
-  const result = await apiRequest(`/exams/schedules/${scheduleId}/enrollments/statistics`);
   return result;
 };

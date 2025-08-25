@@ -29,7 +29,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { fetchExams } from '@/lib/api';
 import type { Exam, StudentCategory } from '@/types';
-
 import { useEffect } from 'react';
 
 const categoryLabels = {
@@ -108,7 +107,6 @@ export default function Exams() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-
           <Button className="bg-primary hover:bg-primary-hover">
             <Plus className="mr-2 h-4 w-4" />
             添加考试

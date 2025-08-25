@@ -8,9 +8,7 @@ import {
   Settings,
   Home,
   CheckCircle2,
-  Bell,
   TrendingUp,
-  Download,
   BookOpen,
   ChevronDown,
 } from 'lucide-react';
@@ -77,9 +75,6 @@ const menuGroups = [
   {
     label: '系统管理',
     items: [
-
-
-
       {
         title: '系统设置',
         url: '/settings',
