@@ -1104,42 +1104,6 @@ export const fetchDashboardOverview = async (): Promise<any> => {
   return result;
 };
 
-// 考试报名学员名单管理
-export const fetchExamEnrollments = async (
-  scheduleId: string,
-  params?: {
-    keyword?: string;
-    enrollment_status?: number;
-    qualification_status?: number;
-    materials_complete?: boolean;
-    preliminary_result?: number;
-    certificate_status?: number;
-    recruiter_id?: number;
-    channel?: string;
-    is_veteran_conversion?: boolean;
-    follow_up?: boolean;
-    start_date?: string;
-    end_date?: string;
-    page?: number;
-    page_size?: number;
-    include_statistics?: boolean;
-  }
-): Promise<any> => {
-  const queryParams = new URLSearchParams();
-  
-  if (params) {
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== '') {
-        queryParams.append(key, String(value));
-      }
-    });
-  }
-
-  const url = `/exams/schedules/${scheduleId}/enrollments${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-  const result = await apiRequest(url);
-  return result;
-};
-
 export const fetchExamEnrollmentStatistics = async (scheduleId: string): Promise<any> => {
   const result = await apiRequest(`/exams/schedules/${scheduleId}/enrollments/statistics`);
   return result;
@@ -1216,3 +1180,39 @@ export const exportRewards = async () => {
 //   });
 //   return result;
 // };
+
+// 考试报名学员名单管理
+export const fetchExamEnrollments = async (
+  scheduleId: string,
+  params?: {
+    keyword?: string;
+    enrollment_status?: number;
+    qualification_status?: number;
+    materials_complete?: boolean;
+    preliminary_result?: number;
+    certificate_status?: number;
+    recruiter_id?: number;
+    channel?: string;
+    is_veteran_conversion?: boolean;
+    follow_up?: boolean;
+    start_date?: string;
+    end_date?: string;
+    page?: number;
+    page_size?: number;
+    include_statistics?: boolean;
+  }
+): Promise<any> => {
+  const queryParams = new URLSearchParams();
+  
+  if (params) {
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        queryParams.append(key, String(value));
+      }
+    });
+  }
+
+  const url = `/exams/schedules/${scheduleId}/enrollments${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+  const result = await apiRequest(url);
+  return result;
+};
