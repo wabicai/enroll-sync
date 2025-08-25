@@ -200,6 +200,7 @@ const refreshAuthToken = async (): Promise<string> => {
   }
 };
 
+
 // 通用API请求函数（增强版，支持自动token刷新）
 export const apiRequest = async (endpoint: string, options: RequestInit = {}, retryCount = 0): Promise<any> => {
   const mode = getCurrentMode();
@@ -422,6 +423,7 @@ export const deleteExam = async (id: string): Promise<void> => {
     method: 'DELETE',
   });
 };
+
 
 // 奖励管理
 export const fetchRewards = async (): Promise<Reward[]> => {
@@ -967,6 +969,87 @@ export const fetchReminderPlans = async () => {
   const result = await apiRequest('/settings/reminder-plans');
   return result.data;
 };
+
+// 获取团队业绩数据
+export const fetchTeamPerformance = async (month: string): Promise<any> => {
+  try {
+    // MOCK DATA
+    if (getCurrentMode() === 'mock') {
+      const { mockTeamPerformance } = await import('@/mock/teams');
+      return mockTeamPerformance;
+    }
+    
+    // 转换月份格式为 YYYY-MM 格式（如果需要）
+    const period = month.length === 7 ? month : `${new Date(month).getFullYear()}-${String(new Date(month).getMonth() + 1).padStart(2, '0')}`;
+    
+    // 调用考核接口获取数据，只获取招生员相关角色
+    const result = await fetchAssessmentsMonthly({
+      period: period,
+      page: 1,
+      page_size: 100  // 获取足够多的数据
+    });
+    
+    // 转换数据格式为团队业绩格式
+    const members = result.items || [];
+    
+    // 只保留招生员相关角色：1=全职，2=兼职，3=自由，4=渠道，5=团队负责人
+    const recruitmentRoles = [1, 2, 3, 4, 5];
+    const filteredMembers = members.filter(member => 
+      member.role_type && recruitmentRoles.includes(member.role_type)
+    );
+    
+    // 计算汇总数据
+    const summary = {
+      total_students: filteredMembers.reduce((sum, m) => sum + (m.personal_students || 0), 0),
+      total_revenue: filteredMembers.reduce((sum, m) => sum + (m.personal_revenue || 0), 0),
+      students_completion_rate: 0,
+      revenue_completion_rate: 0
+    };
+    
+    // 计算平均完成率
+    if (filteredMembers.length > 0) {
+      summary.students_completion_rate = Math.round(
+        filteredMembers.reduce((sum, m) => sum + (m.personal_completion_rate || 0), 0) / filteredMembers.length
+      );
+      summary.revenue_completion_rate = summary.students_completion_rate; // 简化处理
+    }
+    
+    // 转换成员数据格式
+    const transformedMembers = filteredMembers.map(member => ({
+      user_id: member.user_id,
+      name: member.user_name || `用户${member.user_id}`,
+      role_type: member.role_type,
+      personal_students_count: member.personal_students || 0,
+      personal_revenue: member.personal_revenue || 0,
+      personal_completion_rate: member.personal_completion_rate || 0,
+      // 团队数据（如果有的话）
+      team_students_count: member.team_students || 0,
+      team_revenue: member.team_revenue || 0,
+      team_completion_rate: member.team_completion_rate || 0
+    }));
+    
+    return {
+      summary,
+      members: transformedMembers,
+      total: transformedMembers.length
+    };
+    
+  } catch (error) {
+    console.error('获取团队业绩数据失败:', error);
+    // 返回空数据结构而不是抛出异常，避免页面崩溃
+    return {
+      summary: {
+        total_students: 0,
+        total_revenue: 0,
+        students_completion_rate: 0,
+        revenue_completion_rate: 0
+      },
+      members: [],
+      total: 0
+    };
+  }
+};
+
 
 // 通知模板
 export const fetchNotificationTemplates = async () => {

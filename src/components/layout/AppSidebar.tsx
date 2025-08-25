@@ -66,11 +66,7 @@ const menuGroups = [
         url: '/schedules',
         icon: CalendarCheck,
       },
-      {
-        title: '奖励管理',
-        url: '/rewards',
-        icon: Award,
-      },
+
       {
         title: '考核管理',
         url: '/assessments',
