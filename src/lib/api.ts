@@ -712,20 +712,20 @@ export const updateCourse = async (id: string, course: Partial<Course>): Promise
   return result;
 };
 
-export const deleteCourse = async (id: string): Promise<void> => {
-  await apiRequest(`/courses/${id}`, {
+export const deleteCourse = async (id: string, force?: boolean): Promise<void> => {
+  const url = `/courses/${id}${force ? '?force=true' : ''}`;
+  await apiRequest(url, {
     method: 'DELETE',
   });
 };
 
-export const toggleCourseStatus = async (id: string, status: boolean) => {
+export const toggleCourseStatus = async (id: string, status: number) => {
   // 根据后端API，状态更新通过PUT /courses/{id}实现，状态值：1=启用，2=禁用
-  const statusValue = status ? 1 : 2;
   const result = await apiRequest(`/courses/${id}`, {
     method: 'PUT',
-    body: JSON.stringify({ status: statusValue }),
+    body: JSON.stringify({ status: status }),
   });
-  return result.data;
+  return result;
 };
 
 export const fetchCoursesStatisticsSummary = async () => {

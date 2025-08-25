@@ -25,6 +25,7 @@ import Channels from "./pages/Channels";
 
 import RequireAuth from "./components/auth/RequireAuth";
 import { useAuth } from "@/hooks/useAuth";
+import { GlobalConfirmDialog } from "@/components/common/GlobalConfirmDialog";
 
 const Protected = ({ children }: { children: JSX.Element }) => (
   <RequireAuth>{children}</RequireAuth>
@@ -53,6 +54,7 @@ const App = () => {
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <GlobalConfirmDialog />
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<AuthLogin />} />

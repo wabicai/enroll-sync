@@ -1,52 +1,19 @@
-import { useState } from 'react';
-
-interface ConfirmState {
-  open: boolean;
-  title: string;
-  description: string;
-  confirmText: string;
-  cancelText: string;
-  variant: 'default' | 'destructive';
-  onConfirm: () => void | Promise<void>;
-}
+import { useConfirmStore } from '@/store/useConfirmStore';
 
 export function useConfirm() {
-  const [confirmState, setConfirmState] = useState<ConfirmState>({
-    open: false,
-    title: '',
-    description: '',
-    confirmText: '确定',
-    cancelText: '取消',
-    variant: 'default',
-    onConfirm: () => {},
-  });
+  const { openConfirm } = useConfirmStore();
 
   const confirm = (options: {
     title: string;
-    description: string;
-    confirmText?: string;
+    message: string;
+    okText?: string;
     cancelText?: string;
     variant?: 'default' | 'destructive';
-    onConfirm: () => void | Promise<void>;
-  }) => {
-    setConfirmState({
-      open: true,
-      title: options.title,
-      description: options.description,
-      confirmText: options.confirmText || '确定',
-      cancelText: options.cancelText || '取消',
-      variant: options.variant || 'default',
-      onConfirm: options.onConfirm,
+  }): Promise<boolean> => {
+    return new Promise((resolve) => {
+      openConfirm({ ...options, onResolve: resolve });
     });
   };
 
-  const close = () => {
-    setConfirmState(prev => ({ ...prev, open: false }));
-  };
-
-  return {
-    confirmState,
-    confirm,
-    close,
-  };
+  return { confirm };
 }
