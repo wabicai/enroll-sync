@@ -50,25 +50,30 @@ const stepStatusMap: Record<
   number,
   { label: string; variant: "default" | "secondary" | "destructive" }
 > = {
-  1: { label: "待审", variant: "secondary" },
-  2: { label: "已通过", variant: "default" },
-  3: { label: "已拒绝", variant: "destructive" },
+  1: { label: "未开始", variant: "outline" },
+  2: { label: "待审批", variant: "secondary" },
+  3: { label: "已通过", variant: "default" },
+  4: { label: "已拒绝", variant: "destructive" },
+  5: { label: "已跳过", variant: "outline" },
 };
 
 const stepNameMap: Record<string, string> = {
-  finance: "财务审核",
+  exam: "考务审核",
+  finance: "财务发放", // 旧流程，保留兼容
+  finance_review: "财务审核",
   gm: "总经理审批",
+  gm_final: "总经理最终审批",
 };
 
 const roleTypeMap: Record<number, string> = {
-  1: "全职招生",
-  2: "兼职招生",
-  3: "自由招生",
-  4: "渠道招生",
-  5: "团队负责人",
+  1: "全职招生员",
+  2: "兼职招生员",
+  3: "自由招生员",
+  4: "兼职团队负责人",
+  5: "渠道招生",
   6: "总经理",
   7: "考务组",
-  8: "考务组", // 财务和考务组统一为考务组
+  8: "财务",
 };
 
 export default function Approvals() {
@@ -211,67 +216,28 @@ export default function Approvals() {
     return new Date(timeStr).toLocaleString("zh-CN");
   };
 
-  // 检查用户是否有审批当前步骤的权限
-  const canApproveStep = (stepKey: string): boolean => {
-    if (!user) return false;
-
-    // 总经理和系统管理员有所有权限
-    if (user.role === "general_manager" || user.role === "system_admin") {
-      return true;
-    }
-
-    // 根据步骤类型检查权限
-    switch (stepKey) {
-      case "finance":
-        return user.role === "finance_staff";
-      case "gm":
-        return user.role === "general_manager";
-      default:
-        return false;
-    }
+  // 检查用户是否有审批当前步骤的权限 - 已根据要求移除限制，始终返回true
+  const canApproveStep = (step: any): boolean => {
+    return true;
   };
 
   // 检查步骤是否可以审批（考虑前置步骤）
-  const canProcessStep = (steps: ApprovalStep[], targetStepKey: string): { canProcess: boolean; reason: string } => {
-    const targetStep = steps.find(step => step.step_key === targetStepKey);
-    if (!targetStep) {
-      return { canProcess: false, reason: "步骤不存在" };
-    }
-
-    // 检查步骤是否已经处理过
-    if (targetStep.status === 3) {
-      return { canProcess: false, reason: "步骤已通过" };
-    }
-    if (targetStep.status === 4) {
-      return { canProcess: false, reason: "步骤已拒绝" };
-    }
-
-    // 如果步骤状态不是1（待审）或2（进行中），则不能处理
-    if (targetStep.status !== 1 && targetStep.status !== 2) {
-      return { canProcess: false, reason: "步骤状态异常" };
-    }
-
-    // 检查是否是当前应该处理的步骤（前置步骤都已完成）
-    const targetStepOrder = targetStep.step_order;
-
-    // 检查所有前置步骤是否都已完成
-    for (const step of steps) {
-      if (step.step_order < targetStepOrder) {
-        if (step.status !== 3) { // 前置步骤未通过
-          return {
-            canProcess: false,
-            reason: `等待前置步骤"${stepNameMap[step.step_key] || step.step_key}"完成`
-          };
-        }
-      }
+  const canProcessStep = (steps: any[], currentStep: any): { canProcess: boolean; reason: string } => {
+    if (!currentStep) {
+      return { canProcess: false, reason: "没有待处理步骤" };
     }
 
     // 检查权限
-    if (!canApproveStep(targetStepKey)) {
+    if (!canApproveStep(currentStep)) {
       return {
         canProcess: false,
-        reason: `需要${stepNameMap[targetStepKey] || targetStepKey}权限`
+        reason: "您没有审批该步骤所需的角色权限"
       };
+    }
+
+    // 检查步骤状态是否为待审批 (2)
+    if (currentStep.status !== 2) {
+      return { canProcess: false, reason: `步骤状态为 "${stepStatusMap[currentStep.status]?.label || '未知'}"，无法操作` };
     }
 
     return { canProcess: true, reason: "" };
@@ -984,22 +950,19 @@ export default function Approvals() {
                         );
                       }
 
-                      // 审批进行中，查找当前待审步骤（状态为1待审或2进行中）
-                      // 按step_order排序，找到第一个未完成的步骤
-                      const currentApprovalStep = steps
-                        .filter(step => step.status === 1 || step.status === 2)
-                        .sort((a, b) => a.step_order - b.step_order)[0];
+                      // 直接使用后端提供的当前步骤
+                      const currentApprovalStep = steps[inst.current_step_index];
 
                       if (!currentApprovalStep) {
                         return (
                           <div className="text-sm text-muted-foreground bg-muted p-3 rounded-lg">
-                            所有步骤已处理，等待系统更新状态...
+                            无法确定当前审批步骤，请检查流程配置。
                           </div>
                         );
                       }
 
                       // 检查当前步骤是否可以处理
-                      const { canProcess, reason } = canProcessStep(steps, currentApprovalStep.step_key);
+                      const { canProcess, reason } = canProcessStep(steps, currentApprovalStep);
 
                       if (canProcess) {
                         // 可以处理，显示审批按钮
