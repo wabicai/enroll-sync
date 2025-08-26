@@ -15,6 +15,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { AlertTriangle, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useConfirm } from '@/hooks/useConfirm';
+import { useMessage } from '@/hooks/useMessage';
 
 export default function Courses() {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -33,6 +35,12 @@ export default function Courses() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { confirm } = useConfirm();
+  const { error } = useMessage();
+
+  // 调试 confirm 函数
+  console.log('🔴 confirm 函数类型:', typeof confirm);
+  console.log('🔴 confirm 函数内容:', confirm);
 
   // 删除冲突对话框状态
   const [deleteConflictOpen, setDeleteConflictOpen] = useState(false);
@@ -197,6 +205,35 @@ export default function Courses() {
     const url = `${location.pathname}?${sp.toString()}`;
     window.history.replaceState({}, '', url);
   }, [search, statusFilter, sortKey, page]);
+const handleToggleStatus = async (course: Course) => {
+    const newStatus = course.status === 1 ? 2 : 1;
+    const actionText = course.status === 1 ? '停用' : '启用';
+    const ok = await confirm({
+      title: `确认${actionText}`,
+      message: `您确定要${actionText}课程 "${course.course_name}" 吗？`,
+      okText: `确认${actionText}`,
+      cancelText: '取消',
+    });
+
+    if (!ok) return;
+
+    try {
+      const updatedCourse = await toggleCourseStatus(course.id, newStatus);
+      setCourses(prev => prev.map(c => (c.id === course.id ? updatedCourse : c)));
+      toast({
+        title: `${actionText}成功`,
+        description: `课程 "${course.course_name}" 已${actionText}`,
+      });
+      // also update stats
+      refreshData(); // easiest way to update stats
+    } catch (error: any) {
+      toast({
+        title: `${actionText}失败`,
+        description: error.message || '未知错误，请稍后重试',
+        variant: 'destructive',
+      });
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -409,6 +446,8 @@ export default function Courses() {
                     </TableCell>
                     <TableCell className="py-4">
                       {c.standard_fee ? (
+
+
                         <span className="font-medium text-green-600">¥{c.standard_fee}</span>
                       ) : (
                         <span className="text-muted-foreground">-</span>
@@ -441,26 +480,62 @@ export default function Courses() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            className={`h-8 px-2 ${c.status === 1 ? 'text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50' : 'text-green-600 hover:text-green-700 hover:bg-green-50'}`}
+                            onClick={() => handleToggleStatus(c)}
+                          >
+                            {c.status === 1 ? '停用' : '启用'}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             className="h-8 px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
-                            onClick={async () => {
-                      const ok = confirm(`确认删除课程 ${c.course_name} ？`);
-                      if (!ok) return;
+                            onClick={async (e) => {
+                              console.log('🔴 删除按钮被点击!', { courseId: c.id, courseName: c.course_name });
+                              e.preventDefault();
+                              e.stopPropagation();
+                              
+                              try {
+                                console.log('🔴 开始调用确认对话框...');
+                                const ok = await confirm({
+                                  title: '确认删除',
+                                  message: `您确定要删除课程 "${c.course_name}" 吗？此操作不可撤销。`,
+                                  okText: '确认删除',
+                                  cancelText: '取消',
+                                  variant: 'destructive',
+                                });
+                                
+                                console.log('🔴 确认对话框结果:', ok);
+                                
+                                if (!ok) {
+                                  console.log('🔴 用户取消删除操作');
+                                  return;
+                                }
 
-                      try {
-                        await deleteCourse(c.id);
-                        // 删除成功，刷新课程列表
-                        const updatedCourses = await fetchCourses();
-                        setCourses(updatedCourses);
-                      } catch (error: any) {
-                        // 检查是否是因为存在考试安排而无法删除
-                        if (error.message?.includes('考试安排') || error.message?.includes('无法删除')) {
-                          setConflictCourse(c);
-                          setDeleteConflictOpen(true);
-                        } else {
-                          // 其他错误，显示通用错误信息
-                          alert(`删除失败: ${error.message || '未知错误'}`);
-                        }
-                      }
+                                console.log('🔴 开始调用删除API...');
+                                await deleteCourse(c.id);
+                                console.log('🔴 删除API调用成功');
+                                
+                                // 删除成功，刷新课程列表
+                                refreshData();
+                                toast({
+                                  title: "删除成功",
+                                  description: `课程"${c.course_name}"已删除`,
+                                });
+                              } catch (error: any) {
+                                console.error('🔴 删除操作出错:', error);
+                                // 检查是否是因为存在考试安排而无法删除
+                                if (error.message?.includes('考试安排') || error.message?.includes('无法删除') || error.message?.includes('关联')) {
+                                  setConflictCourse(c);
+                                  setDeleteConflictOpen(true);
+                                } else {
+                                  // 其他错误，显示通用错误信息
+                                  toast({
+                                    title: "删除失败",
+                                    description: error.message || '未知错误，请稍后重试',
+                                    variant: "destructive",
+                                  });
+                                }
+                              }
                             }}>
                             删除
                           </Button>
@@ -863,11 +938,38 @@ export default function Courses() {
               </Button>
               <Button
                 variant="outline"
-                className="w-full justify-start text-muted-foreground"
-                disabled
-                title="此功能需要后端支持级联删除"
+                className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+                onClick={async () => {
+                  const forceOk = await confirm({
+                    title: '强制删除确认',
+                    message: `您确定要强制删除课程"${conflictCourse?.course_name}"及其所有关联的考试安排吗？此操作不可撤销！`,
+                    okText: '强制删除',
+                    cancelText: '取消',
+                    variant: 'destructive',
+                  });
+                  
+                  if (!forceOk) return;
+                  
+                  try {
+                    await deleteCourse(conflictCourse!.id, true); // 使用 force=true
+                    setDeleteConflictOpen(false);
+                    setConflictCourse(null);
+                    // 刷新课程列表
+                    refreshData();
+                    toast({
+                      title: "删除成功",
+                      description: `课程"${conflictCourse?.course_name}"及相关安排已删除`,
+                    });
+                  } catch (error: any) {
+                    toast({
+                      title: "删除失败",
+                      description: error.message || '删除失败，请稍后重试',
+                      variant: "destructive",
+                    });
+                  }
+                }}
               >
-                强制删除课程及相关安排（暂不可用）
+                强制删除课程及相关安排
               </Button>
             </div>
           </div>

@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAppStore } from '@/store/useAppStore';
 import { mockUsers } from '@/mock';
 import { api } from '@/lib/api';
+import { useMessage } from '@/hooks/useMessage';
 
 const identityOptions = [
   { value: 'full_time', label: '全职招生' },
@@ -29,6 +30,7 @@ export default function AuthRegister() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const { success } = useMessage();
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,8 +75,13 @@ export default function AuthRegister() {
 
       // 使用统一的API调用，路径更简洁
       const result = await api.post('auth/register', registerData);
-      alert(`注册成功！用户ID: ${result.user_id}，状态: ${result.need_audit ? '待审核' : '已激活'}，请返回登录页面`);
-      window.location.href = '/login';
+      success(
+        '注册成功',
+        `您的账户已创建，用户ID: ${result.user_id}。状态: ${result.need_audit ? '待审核' : '已激活'}。即将跳转到登录页面。`
+      );
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 3000); // 延迟3秒跳转，让用户看清提示
       
     } catch (error: any) {
       setError(error.message || '注册失败，请重试');

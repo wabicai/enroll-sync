@@ -11,14 +11,14 @@ import type { Reward } from '@/types';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useMessage } from '@/hooks/useMessage';
 
-// 奖励状态标签映射 - 优化后的5状态体系
+// 奖励状态标签映射 - 统一的4状态体系
 const statusLabels = {
-  1: '可申请奖励',      // 系统自动生成，招生员可申请
-  2: '待考务审核',      // 招生员申请后直接进入考务审核
-  3: '待总经理审批',    // 考务审核通过后
-  4: '财务审核中',      // 总经理审批通过后
-  5: '已发放',          // 财务审核通过，流程结束
+  1: '可申请',          // 可申请奖励
+  2: '财务审批',        // 财务审批
+  3: '总经理审批',      // 总经理审批
+  4: '已发放',          // 已发放
   // 兼容旧的字符串状态
   pending: '待审核',
   approved: '已审核',
@@ -99,7 +99,7 @@ export default function Rewards() {
 
   const handleAddReward = async () => {
     if (!addForm.student_enrollment_id || !addForm.recruiter_user_id || !addForm.total_fee) {
-      alert('请填写必填字段');
+      showError('信息不完整', '请填写所有必填字段。');
       return;
     }
 
@@ -129,7 +129,7 @@ export default function Rewards() {
       });
     } catch (error) {
       console.error('创建奖励失败:', error);
-      alert('创建奖励失败，请重试');
+      showError('创建失败', '创建奖励时发生错误，请检查网络连接或稍后重试。');
     }
   };
 

@@ -4,9 +4,18 @@ import { SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
 import { AppHeader } from './AppHeader';
 import { useAppStore } from '@/store/useAppStore';
+import { ConfirmProvider, useConfirm } from '@/contexts/ConfirmContext';
+import { useMessage } from '@/hooks/useMessage';
+import { ConfirmDialog } from '@/components/common/ConfirmDialogComp';
+import { MessageDialog } from '@/components/common/MessageDialog';
 
-export function AppLayout() {
+function AppLayoutContent() {
   const { initialize, sidebarCollapsed } = useAppStore();
+  const { confirmState, close: closeConfirm } = useConfirm();
+  const { messageState, close: closeMessage } = useMessage();
+
+  // 添加调试信息
+  console.log('🔴 AppLayout 中的 confirmState:', confirmState);
 
   useEffect(() => {
     initialize();
@@ -23,6 +32,16 @@ export function AppLayout() {
           </main>
         </div>
       </div>
+      <ConfirmDialog {...confirmState} onClose={closeConfirm} />
+      <MessageDialog {...messageState} onClose={closeMessage} />
     </SidebarProvider>
+  );
+}
+
+export function AppLayout() {
+  return (
+    <ConfirmProvider>
+      <AppLayoutContent />
+    </ConfirmProvider>
   );
 }

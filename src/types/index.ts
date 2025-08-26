@@ -68,8 +68,8 @@ export interface Exam {
 // 奖励类型
 export type RewardType = 'recruitment' | 'development' | 'performance' | 'special';
 
-// 奖励状态枚举 - 优化后的5状态体系
-export type RewardStatus = 1 | 2 | 3 | 4 | 5;
+// 奖励状态枚举 - 统一的4状态体系
+export type RewardStatus = 1 | 2 | 3 | 4;
 
 // 奖励信息
 export interface Reward {
@@ -182,7 +182,7 @@ export interface ExamEnrollment {
   phone: string;
   gender: number; // 1男 2女
   education: string;
-  
+
   // 报考记录信息
   enrollment_id: number;
   enrollment_number: string;
@@ -190,26 +190,26 @@ export interface ExamEnrollment {
   course_level: string;
   course_batch: string;
   registration_date: string;
-  
+
   // 审核和状态信息
   enrollment_status: number; // 1正常 2退学 3完成
   qualification_status: number; // 1待审核 2已通过 3不符合
   materials_complete: boolean;
-  
+
   // 考试相关信息
   preliminary_result?: number; // 1未考 2通过 3未通过
   makeup_exam_time?: string;
   makeup_exam_result?: number;
   certificate_status: number; // 1未发放 2已发放 3申请中
   certificate_number?: string;
-  
+
   // 其他信息
   recruiter_id?: number;
   recruiter_name?: string;
   channel?: string;
   is_veteran_conversion: boolean;
   follow_up: boolean;
-  
+
   // 时间信息
   created_at: string;
   updated_at: string;
@@ -354,3 +354,35 @@ export interface ExportRecord {
 
 // 财务
 // 财务类型已移除
+
+// 团队业绩
+export interface TeamPerformanceSummary {
+  total_revenue: number;
+  total_students: number;
+  total_reward_amount: number;
+  team_target_students: number;
+  team_target_revenue: number;
+  revenue_completion_rate: number;
+  students_completion_rate: number;
+  month: string;
+}
+
+export interface TeamPerformanceMemberDetail {
+  user_id: number;
+  real_name: string;
+  role_type: number;
+  is_leader: boolean;
+  personal_students_count: number;
+  personal_revenue: number;
+  personal_reward_amount: number;
+  personal_target_students: number;
+  personal_target_revenue: number;
+  personal_completion_rate: number;
+  team_contribution_rate: number;
+  month: string;
+}
+
+export interface TeamPerformanceResponse {
+  summary: TeamPerformanceSummary;
+  members: TeamPerformanceMemberDetail[];
+}

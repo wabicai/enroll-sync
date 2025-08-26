@@ -1,59 +1,165 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { fetchAssessmentConfigs, createAssessmentConfig, updateAssessmentConfig, deleteAssessmentConfig, fetchUsers } from '@/lib/api';
-import type { User } from '@/types';
+import { fetchAssessmentConfigs, createAssessmentConfig, updateAssessmentConfig, deleteAssessmentConfig, fetchUsers, fetchTeamPerformance } from '@/lib/api';
+import type { User, TeamPerformanceResponse, TeamPerformanceMemberDetail } from '@/types';
+import { useMessage } from '@/hooks/useMessage';
 
 export default function Assessments() {
   const [users, setUsers] = useState<User[]>([]);
   const [assessmentConfigs, setAssessmentConfigs] = useState<any[]>([]);
+  const [performanceData, setPerformanceData] = useState<TeamPerformanceResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingStates, setLoadingStates] = useState({
+    users: false,
+    configs: false,
+    performance: false
+  });
+  const [dataErrors, setDataErrors] = useState({
+    users: null as string | null,
+    configs: null as string | null,
+    performance: null as string | null
+  });
   const [searchTerm, setSearchTerm] = useState('');
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [formData, setFormData] = useState({
-    is_personal_enabled: false,
-    is_team_enabled: false,
+    is_personal_assessment_enabled: false,
+    is_team_assessment_enabled: false,
     personal_target_students: 0,
     personal_target_revenue: 0,
     team_target_students: 0,
     team_target_revenue: 0,
   });
+  const { success, error, info } = useMessage();
 
   useEffect(() => {
     loadData();
   }, []);
 
+  // 重试单个数据源
+  const retryDataSource = async (source: 'users' | 'configs' | 'performance') => {
+    setLoadingStates(prev => ({ ...prev, [source]: true }));
+    setDataErrors(prev => ({ ...prev, [source]: null }));
+
+    try {
+      const currentMonth = new Date().toISOString().slice(0, 7);
+
+      switch (source) {
+        case 'users':
+          const usersResult = await fetchUsers();
+          const recruitmentRoles = [1, 2, 3, 4, 5];
+          const filteredUsers = usersResult.filter(user =>
+            user.role_type && recruitmentRoles.includes(user.role_type)
+          );
+          const sortedUsers = filteredUsers.sort((a, b) => {
+            const aIsRecruitment = a.role_type && recruitmentRoles.includes(a.role_type);
+            const bIsRecruitment = b.role_type && recruitmentRoles.includes(b.role_type);
+            if (aIsRecruitment && !bIsRecruitment) return -1;
+            if (!aIsRecruitment && bIsRecruitment) return 1;
+            return 0;
+          });
+          setUsers(sortedUsers);
+          success('用户数据重新加载成功', `成功加载 ${sortedUsers.length} 个招生员数据`);
+          break;
+
+        case 'configs':
+          const configsResult = await fetchAssessmentConfigs();
+          setAssessmentConfigs(configsResult.items || []);
+          success('考核配置重新加载成功', `成功加载 ${configsResult.items?.length || 0} 个配置`);
+          break;
+
+        case 'performance':
+          const performanceResult = await fetchTeamPerformance(currentMonth);
+          setPerformanceData(performanceResult);
+          success('业绩数据重新加载成功', '业绩数据已更新');
+          break;
+      }
+    } catch (err) {
+      console.error(`重新加载${source}数据失败:`, err);
+      setDataErrors(prev => ({ ...prev, [source]: `加载失败: ${err instanceof Error ? err.message : '未知错误'}` }));
+      error('重新加载失败', `${source}数据加载失败，请稍后重试`);
+    } finally {
+      setLoadingStates(prev => ({ ...prev, [source]: false }));
+    }
+  };
+
   const loadData = async () => {
     setLoading(true);
     try {
-      const [usersResult, configsResult] = await Promise.all([
+      const currentMonth = new Date().toISOString().slice(0, 7);
+
+      // 使用 Promise.allSettled 来处理部分失败的情况
+      const [usersResult, configsResult, performanceResult] = await Promise.allSettled([
         fetchUsers(),
-        fetchAssessmentConfigs()
+        fetchAssessmentConfigs(),
+        fetchTeamPerformance(currentMonth)
       ]);
 
+      // 处理用户数据
+      let users: User[] = [];
+      if (usersResult.status === 'fulfilled') {
+        // 过滤用户：只显示招生员相关角色（排除总经理、考务、财务等管理角色）
+        const recruitmentRoles = [1, 2, 3, 4, 5]; // 全职、兼职、自由、渠道、团队负责人
+        const filteredUsers = usersResult.value.filter(user =>
+          user.role_type && recruitmentRoles.includes(user.role_type)
+        );
 
+        // 优先显示招生员角色
+        users = filteredUsers.sort((a, b) => {
+          const aIsRecruitment = a.role_type && recruitmentRoles.includes(a.role_type);
+          const bIsRecruitment = b.role_type && recruitmentRoles.includes(b.role_type);
 
-      // 显示所有用户，但优先显示招生员角色
-      const allUsers = usersResult.sort((a, b) => {
-        const recruitmentRoles = [1, 2, 3, 4, 5]; // 招生员相关角色
-        const aIsRecruitment = a.role_type && recruitmentRoles.includes(a.role_type);
-        const bIsRecruitment = b.role_type && recruitmentRoles.includes(b.role_type);
+          if (aIsRecruitment && !bIsRecruitment) return -1;
+          if (!aIsRecruitment && bIsRecruitment) return 1;
+          return 0;
+        });
+      } else {
+        console.error('获取用户数据失败:', usersResult.reason);
+        error('数据加载失败', '无法获取用户数据，请检查网络连接或稍后重试');
+      }
 
-        if (aIsRecruitment && !bIsRecruitment) return -1;
-        if (!aIsRecruitment && bIsRecruitment) return 1;
-        return 0;
-      });
-      setUsers(allUsers);
-      setAssessmentConfigs(configsResult.items || []);
+      // 处理考核配置数据
+      let configs: any[] = [];
+      if (configsResult.status === 'fulfilled') {
+        configs = configsResult.value.items || [];
+      } else {
+        console.error('获取考核配置失败:', configsResult.reason);
+        info('部分数据加载失败', '考核配置数据加载失败，但不影响基本功能使用');
+      }
+
+      // 处理业绩数据
+      let performance: any = null;
+      if (performanceResult.status === 'fulfilled') {
+        performance = performanceResult.value;
+      } else {
+        console.error('获取业绩数据失败:', performanceResult.reason);
+        info('部分数据加载失败', '业绩数据加载失败，请稍后刷新重试');
+      }
+
+      setUsers(users);
+      setAssessmentConfigs(configs);
+      setPerformanceData(performance);
+
+      // 显示加载结果统计
+      const successCount = [usersResult, configsResult, performanceResult].filter(r => r.status === 'fulfilled').length;
+      if (successCount === 3) {
+        success('数据加载完成', `成功加载 ${users.length} 个招生员数据`);
+      } else {
+        info('数据部分加载', `${successCount}/3 个数据源加载成功`);
+      }
+
     } catch (error) {
       console.error('获取数据失败:', error);
+      error('数据加载失败', '系统出现异常，请刷新页面重试');
     } finally {
       setLoading(false);
     }
@@ -64,23 +170,38 @@ export default function Assessments() {
     return assessmentConfigs.find(c => c.user_id.toString() === userId);
   };
 
+  // 获取用户的业绩数据
+  const getUserPerformance = (userId: string): TeamPerformanceMemberDetail | undefined => {
+    return performanceData?.members.find(m => m.user_id.toString() === userId);
+  };
+
   // 过滤用户列表
-  const filteredUsers = users.filter(user =>
-    (user.real_name && user.real_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (user.phone && user.phone.includes(searchTerm)) ||
-    (user.id && user.id.includes(searchTerm))
-  );
+  // 只包括招生相关角色，并根据搜索条件过滤
+  const filteredUsers = users.filter(user => {
+    const recruitmentRoles = [1, 2, 3, 4]; // 只包括 1-4 种角色
+    const isRecruitmentRole = user.role_type && recruitmentRoles.includes(user.role_type);
+
+    if (!isRecruitmentRole) {
+      return false; // 如果不是招生角色，直接过滤掉
+    }
+
+    // 根据搜索条件进行过滤
+    return (
+      (user.real_name && user.real_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (user.phone && user.phone.includes(searchTerm)) ||
+      (user.id && user.id.includes(searchTerm))
+    );
+  });
 
   // 身份标签映射 - 基于 role_type 数字
   const identityLabels: Record<number, string> = {
     1: '全职招生员',
     2: '兼职招生员',
     3: '自由招生员',
-    4: '渠道招生员',
-    5: '团队负责人',
-    6: '总经理',
-    7: '考务组',
-    8: '财务'
+    4: '兼职招生负责人',
+    5: '总经理',
+    6: '考务组',
+    7: '财务'
   };
 
   // 身份标签颜色
@@ -103,8 +224,8 @@ export default function Assessments() {
     if (config) {
       // 加载现有配置
       setFormData({
-        is_personal_enabled: config.is_personal_enabled || false,
-        is_team_enabled: config.is_team_enabled || false,
+        is_personal_assessment_enabled: config.is_personal_assessment_enabled || false,
+        is_team_assessment_enabled: config.is_team_assessment_enabled || false,
         personal_target_students: config.personal_target_students || 0,
         personal_target_revenue: config.personal_target_revenue || 0,
         team_target_students: config.team_target_students || 0,
@@ -113,8 +234,8 @@ export default function Assessments() {
     } else {
       // 重置为默认值
       setFormData({
-        is_personal_enabled: false,
-        is_team_enabled: false,
+        is_personal_assessment_enabled: false,
+        is_team_assessment_enabled: false,
         personal_target_students: 0,
         personal_target_revenue: 0,
         team_target_students: 0,
@@ -128,7 +249,7 @@ export default function Assessments() {
   // 保存配置
   const saveConfig = async () => {
     if (!selectedUser) {
-      alert('请先选择用户');
+      info('操作无效', '请先选择一个用户再进行操作。');
       return;
     }
 
@@ -138,21 +259,21 @@ export default function Assessments() {
       if (existingConfig) {
         // 更新现有配置
         await updateAssessmentConfig(parseInt(selectedUser.id), formData);
-        alert('考核配置更新成功！');
+        success('更新成功', '考核配置已成功更新！');
       } else {
         // 创建新配置
         await createAssessmentConfig({
           user_id: parseInt(selectedUser.id),
           ...formData
         });
-        alert('考核配置创建成功！');
+        success('创建成功', '考核配置已成功创建！');
       }
 
       await loadData();
       setDetailOpen(false);
     } catch (error) {
       console.error('保存考核配置失败:', error);
-      alert('保存失败，请检查输入信息');
+      error('保存失败', '保存考核配置时发生错误，请检查输入信息或稍后重试。');
     }
   };
 
@@ -173,13 +294,34 @@ export default function Assessments() {
           <Button size="sm" variant="outline" onClick={loadData} disabled={loading}>
             {loading ? '刷新中...' : '刷新'}
           </Button>
+          {/* 数据加载状态指示器 */}
+          {(loadingStates.users || loadingStates.configs || loadingStates.performance) && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full"></div>
+              <span>加载中...</span>
+            </div>
+          )}
+          {/* 错误状态指示器 */}
+          {(dataErrors.users || dataErrors.configs || dataErrors.performance) && (
+            <div className="flex items-center gap-2 text-sm text-red-600">
+              <span>⚠️</span>
+              <span>部分数据加载失败</span>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* 招生员列表 */}
-      <Card>
+      <Tabs defaultValue="personal">
+        <TabsList >
+          <TabsTrigger value="personal">个人业绩考核</TabsTrigger>
+          <TabsTrigger value="team">团队业绩考核</TabsTrigger>
+        </TabsList>
+        <TabsContent value="personal">
+          {/* 个人业绩考核 */}
+          <Card>
         <CardHeader>
           <CardTitle>招生员列表</CardTitle>
+
         </CardHeader>
         <CardContent>
           <Table>
@@ -188,15 +330,20 @@ export default function Assessments() {
                 <TableHead>姓名</TableHead>
                 <TableHead>身份</TableHead>
                 <TableHead>联系方式</TableHead>
-                <TableHead>考核状态</TableHead>
-                <TableHead>个人目标</TableHead>
-                <TableHead>团队目标</TableHead>
+                <TableHead>个人招生 (当月 / 目标)</TableHead>
+                <TableHead>个人收入 (当月 / 目标)</TableHead>
+                <TableHead>完成率</TableHead>
                 <TableHead>操作</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredUsers.map(user => {
                 const config = getUserConfig(user.id);
+                const performance = getUserPerformance(user.id);
+
+
+
+
                 return (
                   <TableRow key={user.id}>
                     <TableCell>
@@ -219,29 +366,20 @@ export default function Assessments() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={config ? 'default' : 'secondary'}>
-                        {config ? '已配置' : '未配置'}
-                      </Badge>
+                      <div className="text-sm">
+                        <div>{`${performance?.personal_students_count || 0} / ${config?.personal_target_students || 0} 人`}</div>
+                      </div>
                     </TableCell>
                     <TableCell>
-                      {config && config.is_personal_enabled ? (
-                        <div className="text-sm">
-                          <div>招生: {config.personal_target_students || 0}人</div>
-                          <div>收入: ¥{config.personal_target_revenue || 0}</div>
-                        </div>
-                      ) : (
-                        <span className="text-gray-400">未启用</span>
-                      )}
+                      <div className="text-sm">
+                        <div>{`¥${performance?.personal_revenue || 0} / ¥${config?.personal_target_revenue || 0}`}</div>
+                      </div>
                     </TableCell>
                     <TableCell>
-                      {config && config.is_team_enabled ? (
-                        <div className="text-sm">
-                          <div>招生: {config.team_target_students || 0}人</div>
-                          <div>收入: ¥{config.team_target_revenue || 0}</div>
-                        </div>
-                      ) : (
-                        <span className="text-gray-400">未启用</span>
-                      )}
+                      <div className="w-24">
+                        <Progress value={performance?.personal_completion_rate || 0} />
+                        <span className="text-xs text-muted-foreground">{`${performance?.personal_completion_rate || 0}%`}</span>
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Button
@@ -257,13 +395,89 @@ export default function Assessments() {
             </TableBody>
           </Table>
 
-          {filteredUsers.length === 0 && (
+          {filteredUsers.length === 0 && !loading && (
             <div className="text-center py-8 text-gray-500">
-              {searchTerm ? '未找到匹配的招生员' : '暂无招生员数据'}
+              {dataErrors.users ? (
+                <div className="space-y-2">
+                  <div className="text-red-600">⚠️ 用户数据加载失败</div>
+                  <Button size="sm" variant="outline" onClick={loadData}>
+                    重新加载
+                  </Button>
+                </div>
+              ) : (
+                searchTerm ? '未找到匹配的招生员' : '暂无招生员数据'
+              )}
+            </div>
+          )}
+
+          {loading && (
+            <div className="text-center py-8">
+              <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                <div className="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full"></div>
+                <span>正在加载数据...</span>
+              </div>
             </div>
           )}
         </CardContent>
-      </Card>
+          </Card>
+        </TabsContent>
+        <TabsContent value="team">
+          {/* 团队业绩考核 */}
+          <Card>
+            <CardHeader>
+              <CardTitle>团队业绩考核</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>负责人</TableHead>
+                    <TableHead>团队招生 (当月 / 目标)</TableHead>
+                    <TableHead>团队收入 (当月 / 目标)</TableHead>
+                    <TableHead>招生完成率</TableHead>
+                    <TableHead>收入完成率</TableHead>
+                    <TableHead>操作</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredUsers.filter(user => user.role_type === 5).map(leader => {
+                    const config = getUserConfig(leader.id);
+                    const summary = performanceData?.summary;
+
+                    return (
+                      <TableRow key={leader.id}>
+                        <TableCell>
+                          <div className="font-medium">{leader.real_name || '未设置姓名'}</div>
+                          <div className="text-sm text-gray-500">ID: {leader.id}</div>
+                        </TableCell>
+                        <TableCell>{`${summary?.total_students || 0} / ${config?.team_target_students || 0} 人`}</TableCell>
+                        <TableCell>{`¥${summary?.total_revenue || 0} / ¥${config?.team_target_revenue || 0}`}</TableCell>
+                        <TableCell>
+                          <div className="w-24">
+                            <Progress value={summary?.students_completion_rate || 0} />
+                            <span className="text-xs text-muted-foreground">{`${summary?.students_completion_rate || 0}%`}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="w-24">
+                            <Progress value={summary?.revenue_completion_rate || 0} />
+                            <span className="text-xs text-muted-foreground">{`${summary?.revenue_completion_rate || 0}%`}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Button size="sm" onClick={() => openConfigDrawer(leader)}>
+                            配置考核
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* 考核配置抽屉 */}
       <Sheet open={detailOpen} onOpenChange={setDetailOpen}>
@@ -325,12 +539,12 @@ export default function Assessments() {
                     <h3 className="text-lg font-semibold text-green-900">个人考核</h3>
                   </div>
                   <Switch
-                    checked={formData.is_personal_enabled}
-                    onCheckedChange={(checked) => setFormData({...formData, is_personal_enabled: checked})}
+                    checked={formData.is_personal_assessment_enabled}
+                    onCheckedChange={(checked) => setFormData({...formData, is_personal_assessment_enabled: checked})}
                   />
                 </div>
 
-                {formData.is_personal_enabled && (
+                {formData.is_personal_assessment_enabled && (
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label className="text-green-700 font-medium">招生目标（人）</Label>
@@ -367,12 +581,12 @@ export default function Assessments() {
                     <h3 className="text-lg font-semibold text-orange-900">团队考核</h3>
                   </div>
                   <Switch
-                    checked={formData.is_team_enabled}
-                    onCheckedChange={(checked) => setFormData({...formData, is_team_enabled: checked})}
+                    checked={formData.is_team_assessment_enabled}
+                    onCheckedChange={(checked) => setFormData({...formData, is_team_assessment_enabled: checked})}
                   />
                 </div>
 
-                {formData.is_team_enabled && (
+                {formData.is_team_assessment_enabled && (
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label className="text-orange-700 font-medium">团队招生目标（人）</Label>
